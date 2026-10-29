@@ -1,11 +1,17 @@
 import { formatPrice } from "../utils/formatPrice.js";
 
-export default function CartPanel({ cart, products, onUpdateQuantity, onRemove, onCheckout, submitting }) {
-  const lines = cart
-    .map((line) => ({ ...line, product: products.find((product) => product._id === line.productId) }))
-    .filter((line) => line.product);
-
-  const subtotal = lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+export default function CartPanel({
+  cart, products, onUpdateQuantity, onRemove, onCheckout, submitting,
+}) {
+  const lines = [];
+  let subtotal = 0;
+  for (const item of cart) {
+    const product = products.find((product) => product._id === item.productId);
+    if (product) {
+      lines.push({ product, productId: item.productId, quantity: item.quantity });
+      subtotal += product.price * item.quantity;
+    }
+  }
 
   return (
     <section>

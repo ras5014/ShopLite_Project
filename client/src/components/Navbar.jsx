@@ -2,8 +2,10 @@ export default function Navbar({ activeView, onNavigate, cartCount, user, onLogo
   const links = [
     { id: "shop", label: "Shop" },
     { id: "cart", label: `Cart (${cartCount})` },
-    ...(user ? [{ id: "orders", label: "My orders" }] : []),
   ];
+  if (user) {
+    links.push({ id: "orders", label: "My orders" });
+  }
 
   return (
     <header className="site-header">

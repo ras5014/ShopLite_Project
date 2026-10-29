@@ -14,6 +14,7 @@ const app = express();
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
 app.use(express.json({ limit: "100kb" }));
 
+// Stage 5: connect the routes from the earlier learning stages.
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "shoplite-api" });
 });
@@ -27,7 +28,9 @@ app.use((req, res) => {
 
 app.use((error, req, res, next) => {
   console.error(error);
-  if (res.headersSent) return next(error);
+  if (res.headersSent) {
+    return next(error);
+  }
   return res.status(500).json({ message: "Something went wrong on the server." });
 });
 

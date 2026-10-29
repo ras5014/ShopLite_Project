@@ -38,6 +38,8 @@ Keep returning to a single example: an Insulated Bottle. With the default seed d
 
 ## 3. How to use the PowerPoint
 
+**Code update:** the application is now organized into beginner-friendly learning stages in the [README](../README.md). The slides still describe the same features and flows, but their source excerpts and some implementation-specific notes predate the simplification. Use the README's exact source listings for live coding: request effects now use named async functions, totals use loops, and Express 5 forwards async route failures to the central error handler.
+
 - Slides **1-11:** Day 1.
 - Slides **12-22:** Day 2.
 - Slides **23-33:** Day 3.

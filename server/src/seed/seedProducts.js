@@ -81,13 +81,16 @@ const products = [
 async function seedProducts() {
   try {
     await connectDB();
-    const operations = products.map((product) => ({
-      updateOne: {
-        filter: { slug: product.slug },
-        update: { $set: product },
-        upsert: true,
-      },
-    }));
+    const operations = [];
+    for (const product of products) {
+      operations.push({
+        updateOne: {
+          filter: { slug: product.slug },
+          update: { $set: product },
+          upsert: true,
+        },
+      });
+    }
     await Product.bulkWrite(operations);
     console.log(`Seeded/updated ${products.length} demo products.`);
   } catch (error) {

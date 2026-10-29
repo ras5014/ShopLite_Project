@@ -1,123 +1,210 @@
-# ShopLite — Complete Full-Stack E-commerce Build Guide
+# ShopLite - Learn full-stack development in clear stages
 
-**CodeEmy | React + Vite + Node.js + Express + MongoDB | Beginner-friendly, from an empty folder**
+**CodeEmy | React + Vite + Node.js + Express + MongoDB**
 
-This README is the build guide and codebook. Follow it from top to bottom. Every source file that you must create or replace is included in full below; there are no “continue in another file” steps.
+ShopLite is a small online shop for students who already know basic HTML, CSS and JavaScript.
+This guide contains the **complete application source**, setup instructions, exercises and optional automated tests.
+The code listings below match the files in this project.
 
-## What you will build
+> **React displays. Express checks. MongoDB stores.**
 
-- Responsive product storefront with product cards, category filtering, and search.
-- Shopping cart with add/remove, quantity controls, and subtotal.
-- User registration and login.
-- Password hashing with `bcryptjs` and signed JWT authentication.
-- Express REST API connected to MongoDB through Mongoose.
-- Protected checkout that creates persistent orders.
-- Order history scoped to the signed-in user.
+## What stays in the project
 
-**Out of scope:** real card payments, payment gateways, inventory reservations, shipping, admin dashboards, and production deployment. Checkout is simulated; no money is collected.
+- A responsive product catalogue with search and category filters.
+- A browser-saved cart with add, remove, quantities and subtotal.
+- Account registration, login and logout.
+- Password hashing and signed JWT authentication.
+- Protected demo checkout using prices loaded by the server.
+- Saved order history visible only to the signed-in user.
 
-## 1. How the application works
+**Not included:** real payments, stock reservations, shipping, admin screens or production deployment.
+No money is collected when you place a demo order.
 
-```text
-Browser (React + Vite)
-   |  GET /api/products
-   |  POST /api/auth/register or /api/auth/login
-   |  POST /api/orders   Authorization: Bearer <JWT>
-   |  GET  /api/orders   Authorization: Bearer <JWT>
-   v
-Node.js + Express API
-   |-- User model ---- MongoDB
-   |-- Product model - MongoDB
-   `-- Order model --- MongoDB
-```
+## How to use the learning stages
 
-React **never connects directly to MongoDB**. It calls Express; Express validates requests, checks authentication, calculates order totals from database prices, and then reads/writes MongoDB.
+| Stage | Main question | Concepts |
+|---|---|---|
+| 0. Prepare | What do we need to run two programs? | Folders, packages, configuration |
+| 1. Products | How does the server return products? | Schema, model, route, JSON |
+| 2. Browser and cart | How does a click change the screen? | Components, props, state, loops |
+| 3. Accounts | How do we recognize a customer? | Forms, hashing, context, JWT |
+| 4. Orders | How do we save a trusted purchase? | Middleware, validation, ownership |
+| 5. Connect the pieces | How does the whole app run? | App state, effects, route mounting |
+| 6. Verify | How do we know it still works? | Manual checks and optional tests |
 
-## 2. Requirements
+These are **teaching stages within one complete application**, not separate incomplete versions.
+If you are building from an empty folder, create every application file in Stages 0-5 before running the complete app.
+Some files import modules introduced in a later stage. Do not remove those imports to run a half-built project.
+There are no placeholder handlers or disabled features in the final code.
 
-Install:
+If you already have this project, do not recreate or overwrite its files: use the quick-start below and read the stages alongside the running app.
 
-1. Node.js LTS with npm. Confirm with `node -v` and `npm -v`.
-2. MongoDB, either a local MongoDB service or a MongoDB Atlas database.
-3. VS Code or another editor.
-4. A modern browser. An API client such as Postman or Thunder Client is helpful for backend tests.
+### What was simplified for beginners
 
-## 3. Create the project folders
+- Ordinary loops replace unnecessary Set/Map construction and reduce-based totals.
+- Named async functions use try/catch instead of chained request callbacks.
+- Simple if statements replace nested ternaries and conditional object spreads.
+- State-derived values are calculated directly; this small catalogue does not need useMemo.
+- JSX and event handlers are spaced out so students can follow one action at a time.
+- Stage comments identify the main responsibilities without commenting every line.
+- Security checks stay in place: simpler code does **not** mean trusting the browser.
 
-Open a terminal in the directory where you keep class projects:
+We still use map/filter/find where they clearly express a list operation, and functional state setters when the next cart depends on its previous value.
 
-```bash
-mkdir shoplite
-cd shoplite
-mkdir server
-```
+## A simple mental model
 
-The final structure will look like this:
+Imagine a neighbourhood shop:
 
-```text
-shoplite/
-├── .gitignore
-├── server/
-│   ├── .env                 # Create locally; never commit this file
-│   ├── .env.example
-│   ├── package.json
-│   └── src/
-│       ├── server.js
-│       ├── config/db.js
-│       ├── middleware/requireAuth.js
-│       ├── models/User.js
-│       ├── models/Product.js
-│       ├── models/Order.js
-│       ├── routes/authRoutes.js
-│       ├── routes/productRoutes.js
-│       ├── routes/orderRoutes.js
-│       └── seed/seedProducts.js
-└── client/
-    ├── .env                 # Create locally; Vite variable is just the API URL
-    ├── .env.example
-    ├── index.html
-    ├── package.json
-    └── src/
-        ├── main.jsx
-        ├── App.jsx
-        ├── api.js
-        ├── styles.css
-        ├── auth/AuthContext.jsx
-        ├── components/Navbar.jsx
-        ├── components/ProductCard.jsx
-        ├── components/AuthPanel.jsx
-        ├── components/CartPanel.jsx
-        ├── components/OrdersPanel.jsx
-        └── utils/formatPrice.js
-```
+| Shop idea | Application part | Job |
+|---|---|---|
+| Counter/display | React in the browser | Show products and collect input |
+| Shopkeeper | Express running on Node.js | Check requests and apply rules |
+| Record book | MongoDB | Keep products, users and orders |
 
-Create the following backend folders before adding their files.
+~~~text
+Browser (React)
+    -> HTTP request
+Express API (Node.js)
+    -> Mongoose query
+MongoDB
+    -> query result -> JSON response -> React state -> updated screen
+~~~
 
-**macOS / Linux:**
+React does not connect directly to MongoDB. The browser also does not decide the trusted order total.
 
-```bash
-mkdir -p server/src/config server/src/middleware server/src/models server/src/routes server/src/seed
-```
+## Quick start for an existing checkout
 
-**Windows PowerShell:**
+1. Install Node.js and make MongoDB available (local MongoDB or Atlas).
+2. Configure the local environment using the table in Stage 0.
+3. Open two terminals at the project root.
+4. Install dependencies and seed **only a disposable classroom database**.
+5. Start the two programs and visit the URL printed by Vite.
 
-```powershell
-New-Item -ItemType Directory -Force -Path `
-  'server/src/config','server/src/middleware','server/src/models','server/src/routes','server/src/seed' | Out-Null
-```
+**Terminal A - backend (PowerShell):**
 
-Create the files below using the exact paths shown. Later, Vite creates the `client` folder; you will create its extra source folders in Part B.
+~~~powershell
+Set-Location .\server
+npm.cmd ci
+npm.cmd run seed
+npm.cmd run dev
+~~~
+
+**Terminal B - frontend (PowerShell):**
+
+~~~powershell
+Set-Location .\client
+npm.cmd ci
+npm.cmd run dev
+~~~
+
+The checked-in lockfiles make **npm ci** repeatable. When building from scratch without lockfiles, use **npm.cmd install** instead.
+Use **npm** on macOS/Linux; **npm.cmd** is the Windows launcher and avoids the common PowerShell npm.ps1 execution-policy error.
+
+Default addresses:
+
+- Frontend: http://localhost:5173
+- API health: http://localhost:5000/api/health
+- Products: http://localhost:5000/api/products
+
+### Classroom timing: three 90-minute days
+
+| Day | Teach | Practical task |
+|---|---|---|
+| 1 | Working demo, components, state, search and browser cart | Change a label and verify cart behavior |
+| 2 | Product API, JSON, MongoDB models and registration | Inspect a request in DevTools |
+| 3 | Login, token checks, checkout and private order history | Place an order and compare two users |
+
+Install dependencies and rehearse **before class**. In 4.5 hours, teach a guided walkthrough and small edits rather than typing every file.
+The [teaching guide](./teaching/Teaching_Guide.md) includes timings and discussion questions.
+The earlier slide deck explains the same features, but its code screenshots/excerpts predate this refactor; use the exact source below for live coding.
 
 ---
 
-# Part A — Build the backend
+# Stage 0 - Prepare the project
 
-## 4. Create the backend package file
+## Requirements
 
-Create `server/package.json`:
+- Node.js LTS compatible with the installed Vite version; Node.js 24 was used for validation.
+- npm (included with Node.js).
+- MongoDB, either local or Atlas, for normal app use.
+- A code editor and modern browser.
 
+Check the tools:
 
-```json
+~~~powershell
+node --version
+npm.cmd --version
+~~~
+
+The frontend manifest uses latest versions, so retain the supplied lockfiles for a predictable classroom install.
+Do not upgrade dependencies in the middle of a lesson.
+
+## Starting from an empty directory
+
+Run this only for a **new copy**, not inside an already complete checkout:
+
+~~~powershell
+New-Item -ItemType Directory -Path ShopLite
+Set-Location .\ShopLite
+New-Item -ItemType Directory -Force -Path `
+  'server\src\config', 'server\src\models', 'server\src\routes', `
+  'server\src\middleware', 'server\src\seed', `
+  'client\src\components', 'client\src\auth', 'client\src\utils', `
+  'server\tests', 'client\tests' | Out-Null
+~~~
+
+Do not run a scaffolder over these files. The Vite configuration and entry point are included below.
+Tests are an optional instructor appendix; the main application does not import them.
+
+## Configure local settings
+
+Create a local **server/.env** in your editor and add settings using the variable names below.
+Use your own connection details and a newly generated secret; never copy live credentials into a README, screenshot or repository.
+
+| Variable | Meaning | Local development guidance |
+|---|---|---|
+| PORT | API listening port | 5000 |
+| CLIENT_ORIGIN | Browser origin allowed by CORS | http://localhost:5173 |
+| MONGODB_URI | MongoDB connection string | Point to a disposable shoplite classroom database; local MongoDB normally listens at 127.0.0.1:27017 |
+| JWT_SECRET | Secret used to sign/verify tokens | Random value of at least 32 characters; keep it server-side |
+
+Generate a signing secret locally:
+
+~~~powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+~~~
+
+Paste the generated value into your local server setting, not into source code.
+For Atlas, use your own database connection string and the appropriate network access configuration.
+
+The frontend defaults to the API at http://localhost:5000.
+If needed, create **client/.env** and set **VITE_API_URL** to your API origin.
+Vite variables are public browser configuration: **never put a database URI or signing secret there**.
+Restart the affected dev server after changing configuration.
+
+If Vite selects a different port, align CLIENT_ORIGIN with the actual browser origin.
+The localhost and 127.0.0.1 hostnames are different origins; choose consistently.
+
+### Create [.gitignore](./.gitignore)
+
+Keep dependencies, generated builds, local secrets and test output out of version control.
+
+<!-- source: .gitignore -->
+~~~gitignore
+node_modules/
+dist/
+.env
+.DS_Store
+test-results/
+playwright-report/
+~~~
+
+### Create [server/package.json](./server/package.json)
+
+The backend scripts run the server, seed example products and run optional tests. mongodb-memory-server is test-only; normal app use still requires your configured MongoDB.
+
+<!-- source: server/package.json -->
+~~~json
 {
   "name": "shoplite-server",
   "version": "1.0.0",
@@ -126,7 +213,8 @@ Create `server/package.json`:
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed/seedProducts.js"
+    "seed": "node src/seed/seedProducts.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -137,61 +225,60 @@ Create `server/package.json`:
     "mongoose": "^8.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "mongodb-memory-server": "^10.1.4"
   }
 }
-```
+~~~
 
-## 5. Add environment variables
+### Create [client/package.json](./client/package.json)
 
-Create `server/.env.example`:
+Vite runs/builds the React app. Playwright is a development-only browser test runner, not an application dependency.
 
+<!-- source: client/package.json -->
+~~~json
+{
+  "name": "shoplite-client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.0"
+  }
+}
+~~~
 
-```dotenv
-PORT=5000
-CLIENT_ORIGIN=http://localhost:5173
-MONGODB_URI=mongodb://127.0.0.1:27017/shoplite
-JWT_SECRET=replace-with-a-long-random-secret-before-running
-```
+After creating the manifests, run npm.cmd install once in each directory.
+Continue creating the source files below before starting the complete app.
 
-Now create `server/.env` by copying `.env.example`. Put in your real MongoDB connection string and replace the sample secret with a random string at least 32 characters long. Example for a local MongoDB installation:
+---
 
-```dotenv
-PORT=5000
-CLIENT_ORIGIN=http://localhost:5173
-MONGODB_URI=mongodb://127.0.0.1:27017/shoplite
-JWT_SECRET=replace-this-with-a-long-random-secret-of-at-least-32-characters
-```
+# Stage 1 - Products: model -> route -> JSON
 
-For MongoDB Atlas, use the connection URI provided by Atlas instead of the local URI. Ensure the database user and network access are configured. Do not use a real account password in a classroom screenshot or commit `.env` to Git.
+A **schema** describes fields and validation. A **model** gives us operations such as find and create.
+A **route** handles an HTTP method and path.
 
-Create `shoplite/.gitignore`:
+The catalogue route reads active products and responds with an object containing a products array.
+The browser must read **data.products**, not treat the whole response object as an array.
 
+### Create [server/src/config/db.js](./server/src/config/db.js)
 
-```gitignore
-node_modules/
-dist/
-.env
-.DS_Store
-```
+Connect to the configured database. Missing configuration and connection failures are errors, not a successful empty shop.
 
-## 6. Install backend dependencies
-
-In the terminal:
-
-```bash
-cd server
-npm install
-```
-
-If you are making the project manually and have not created `package.json`, create the file from Step 4 first. `npm install` installs the dependencies declared in that file.
-
-## 7. Create the MongoDB connection helper
-
-Create `server/src/config/db.js`:
-
-
-```js
+<!-- source: server/src/config/db.js -->
+~~~javascript
 import mongoose from "mongoose";
 
 export async function connectDB() {
@@ -203,51 +290,14 @@ export async function connectDB() {
   await mongoose.connect(uri);
   console.log("Connected to MongoDB");
 }
-```
+~~~
 
-## 8. Create the User model
+### Create [server/src/models/Product.js](./server/src/models/Product.js)
 
-Create `server/src/models/User.js`:
+One product document describes one catalogue item. active controls availability; it is not a stock count.
 
-
-```js
-import mongoose from "mongoose";
-
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      maxlength: 254,
-    },
-    // select:false keeps the hash out of ordinary queries and API responses.
-    passwordHash: {
-      type: String,
-      required: true,
-      select: false,
-    },
-  },
-  { timestamps: true }
-);
-
-export const User = mongoose.model("User", userSchema);
-```
-
-## 9. Create the Product model
-
-Create `server/src/models/Product.js`:
-
-
-```js
+<!-- source: server/src/models/Product.js -->
+~~~javascript
 import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
@@ -264,311 +314,34 @@ const productSchema = new mongoose.Schema(
 );
 
 export const Product = mongoose.model("Product", productSchema);
-```
+~~~
 
-## 10. Create the Order model
+### Create [server/src/routes/productRoutes.js](./server/src/routes/productRoutes.js)
 
-Create `server/src/models/Order.js`:
+Read this route from top to bottom: query active products, sort by name, send JSON. Express 5 forwards rejected async handlers to the error middleware.
 
-
-```js
-import mongoose from "mongoose";
-
-const orderItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
-    // Snapshot name and price so history remains accurate after catalogue edits.
-    name: { type: String, required: true },
-    price: { type: Number, required: true, min: 0 },
-    quantity: { type: Number, required: true, min: 1, max: 20 },
-  },
-  { _id: false }
-);
-
-const orderSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    items: {
-      type: [orderItemSchema],
-      required: true,
-      validate: {
-        validator: (items) => Array.isArray(items) && items.length > 0,
-        message: "An order needs at least one item.",
-      },
-    },
-    totalAmount: { type: Number, required: true, min: 0 },
-    status: { type: String, enum: ["placed"], default: "placed" },
-  },
-  { timestamps: true }
-);
-
-export const Order = mongoose.model("Order", orderSchema);
-```
-
-An order stores the product name and unit price as snapshots. If a product's price changes later, old orders still display the original purchase price.
-
-## 11. Create JWT authentication middleware
-
-Create `server/src/middleware/requireAuth.js`:
-
-
-```js
-import jwt from "jsonwebtoken";
-
-export function requireAuth(req, res, next) {
-  const authorization = req.get("authorization") ?? "";
-  const match = authorization.match(/^Bearer\s+(\S+)$/i);
-
-  if (!match) {
-    return res.status(401).json({ message: "Please log in to continue." });
-  }
-
-  try {
-    const payload = jwt.verify(match[1], process.env.JWT_SECRET);
-    if (typeof payload !== "object" || typeof payload.sub !== "string") {
-      return res.status(401).json({ message: "Invalid or expired token." });
-    }
-    req.userId = payload.sub;
-    return next();
-  } catch {
-    return res.status(401).json({ message: "Invalid or expired token." });
-  }
-}
-```
-
-The browser sends `Authorization: Bearer <token>`. The middleware verifies the token and attaches its user ID to `req.userId`. Never accept an order owner ID from the browser.
-
-## 12. Create registration and login routes
-
-Create `server/src/routes/authRoutes.js`:
-
-
-```js
-import { Router } from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { User } from "../models/User.js";
-
-const router = Router();
-
-function createToken(user) {
-  return jwt.sign(
-    { sub: user._id.toString() },
-    process.env.JWT_SECRET,
-    { expiresIn: "2h" }
-  );
-}
-
-function publicUser(user) {
-  return {
-    id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-  };
-}
-
-router.post("/register", async (req, res, next) => {
-  try {
-    const { name, email, password } = req.body ?? {};
-
-    if (typeof name !== "string" || !name.trim()) {
-      return res.status(400).json({ message: "Name is required." });
-    }
-    if (
-      typeof email !== "string" ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-    ) {
-      return res.status(400).json({ message: "A valid email is required." });
-    }
-    if (typeof password !== "string" || password.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 8 characters." });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
-      return res.status(409).json({ message: "An account with this email already exists." });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash,
-    });
-
-    return res.status(201).json({ token: createToken(user), user: publicUser(user) });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ message: "An account with this email already exists." });
-    }
-    return next(error);
-  }
-});
-
-router.post("/login", async (req, res, next) => {
-  try {
-    const { email, password } = req.body ?? {};
-    if (typeof email !== "string" || typeof password !== "string") {
-      return res.status(400).json({ message: "Email and password are required." });
-    }
-
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select("+passwordHash");
-    const validPassword = user ? await bcrypt.compare(password, user.passwordHash) : false;
-
-    // Use one message for unknown email and wrong password.
-    if (!user || !validPassword) {
-      return res.status(401).json({ message: "Email or password is incorrect." });
-    }
-
-    return res.json({ token: createToken(user), user: publicUser(user) });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-export default router;
-```
-
-How it works:
-
-1. Registration validates fields, normalizes the email, and rejects duplicate accounts.
-2. `bcrypt.hash()` stores a password hash instead of a plain-text password.
-3. Login loads the hash explicitly and uses `bcrypt.compare()`.
-4. The server signs a JWT with a two-hour expiry.
-5. The API returns only public user details; it never returns `passwordHash`.
-
-## 13. Create the product-list route
-
-Create `server/src/routes/productRoutes.js`:
-
-
-```js
+<!-- source: server/src/routes/productRoutes.js -->
+~~~javascript
 import { Router } from "express";
 import { Product } from "../models/Product.js";
 
 const router = Router();
 
-router.get("/", async (req, res, next) => {
-  try {
-    const products = await Product.find({ active: true }).sort({ name: 1 }).lean();
-    return res.json({ products });
-  } catch (error) {
-    return next(error);
-  }
+// Stage 1: Express 5 sends rejected async handlers to the error middleware.
+router.get("/", async (req, res) => {
+  const products = await Product.find({ active: true }).sort({ name: 1 }).lean();
+  res.json({ products });
 });
 
 export default router;
-```
+~~~
 
-## 14. Create protected order routes
+### Create [server/src/seed/seedProducts.js](./server/src/seed/seedProducts.js)
 
-Create `server/src/routes/orderRoutes.js`:
+Seed eight classroom products. The script upserts by slug: it may overwrite fields of matching products, but it does not reset users or orders. Run it only against the intended disposable database.
 
-
-```js
-import { Router } from "express";
-import mongoose from "mongoose";
-import { requireAuth } from "../middleware/requireAuth.js";
-import { Product } from "../models/Product.js";
-import { Order } from "../models/Order.js";
-
-const router = Router();
-
-router.post("/", requireAuth, async (req, res, next) => {
-  try {
-    const items = req.body?.items;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Your cart is empty." });
-    }
-    if (items.length > 50) {
-      return res.status(400).json({ message: "Too many line items." });
-    }
-
-    // Accept only IDs and quantities; never accept a browser-provided price or total.
-    const quantities = new Map();
-    for (const item of items) {
-      const productId = item?.productId;
-      const quantity = item?.quantity;
-      if (typeof productId !== "string" || !mongoose.isValidObjectId(productId)) {
-        return res.status(400).json({ message: "A cart item has an invalid product ID." });
-      }
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
-        return res.status(400).json({ message: "Each quantity must be between 1 and 20." });
-      }
-      const nextQuantity = (quantities.get(productId) ?? 0) + quantity;
-      if (nextQuantity > 20) {
-        return res.status(400).json({ message: "Maximum quantity per product is 20." });
-      }
-      quantities.set(productId, nextQuantity);
-    }
-
-    const productIds = [...quantities.keys()];
-    const products = await Product.find({ _id: { $in: productIds }, active: true });
-    if (products.length !== productIds.length) {
-      return res.status(400).json({ message: "One or more products are unavailable." });
-    }
-
-    const byId = new Map(products.map((product) => [product._id.toString(), product]));
-    const orderItems = productIds.map((id) => {
-      const product = byId.get(id);
-      return {
-        productId: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: quantities.get(id),
-      };
-    });
-    const totalAmount = Number(
-      orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
-    );
-
-    const order = await Order.create({
-      user: req.userId,
-      items: orderItems,
-      totalAmount,
-      status: "placed",
-    });
-
-    return res.status(201).json({ order });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-router.get("/", requireAuth, async (req, res, next) => {
-  try {
-    // User ownership is enforced in this query, not by a client-supplied user ID.
-    const orders = await Order.find({ user: req.userId }).sort({ createdAt: -1 }).lean();
-    return res.json({ orders });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-export default router;
-```
-
-Two important rules are demonstrated here:
-
-- The browser submits **only** product IDs and quantities. The backend looks up active product prices from MongoDB and calculates the total.
-- `GET /api/orders` queries by `user: req.userId`, so the signed-in user can only retrieve their own orders.
-
-## 15. Seed demo products
-
-Create `server/src/seed/seedProducts.js`:
-
-
-```js
+<!-- source: server/src/seed/seedProducts.js -->
+~~~javascript
 import "dotenv/config";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
@@ -652,13 +425,16 @@ const products = [
 async function seedProducts() {
   try {
     await connectDB();
-    const operations = products.map((product) => ({
-      updateOne: {
-        filter: { slug: product.slug },
-        update: { $set: product },
-        upsert: true,
-      },
-    }));
+    const operations = [];
+    for (const product of products) {
+      operations.push({
+        updateOne: {
+          filter: { slug: product.slug },
+          update: { $set: product },
+          upsert: true,
+        },
+      });
+    }
     await Product.bulkWrite(operations);
     console.log(`Seeded/updated ${products.length} demo products.`);
   } catch (error) {
@@ -670,253 +446,34 @@ async function seedProducts() {
 }
 
 await seedProducts();
-```
+~~~
 
-The seed script uses an upsert by `slug`. Running it more than once updates the demo products instead of deleting the collection.
+### Explain and check
 
-## 16. Connect all routes and start Express
+- What does await wait for? The database query's promise.
+- Why return { products }? The frontend and backend agree on that response shape.
+- What does active mean? Whether the item is currently available to browse/buy.
+- Do we need a user account to read products? No.
 
-Create `server/src/server.js`:
-
-
-```js
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import { connectDB } from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
-import productRoutes from "./routes/productRoutes.js";
-import orderRoutes from "./routes/orderRoutes.js";
-
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  throw new Error("JWT_SECRET must be set to a random string of at least 32 characters in server/.env.");
-}
-
-const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
-app.use(express.json({ limit: "100kb" }));
-
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", service: "shoplite-api" });
-});
-app.use("/api/auth", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({ message: "API route not found." });
-});
-
-app.use((error, req, res, next) => {
-  console.error(error);
-  if (res.headersSent) return next(error);
-  return res.status(500).json({ message: "Something went wrong on the server." });
-});
-
-const port = Number(process.env.PORT) || 5000;
-try {
-  await connectDB();
-  app.listen(port, () => console.log(`ShopLite API listening at http://localhost:${port}`));
-} catch (error) {
-  console.error("Unable to start ShopLite API:", error.message);
-  process.exit(1);
-}
-```
-
-## 17. Start the backend and check it
-
-From the `shoplite/server` folder:
-
-```bash
-npm run seed
-npm run dev
-```
-
-Keep this terminal open. If startup fails, fix the error before continuing. In a browser or API client, check:
-
-- `GET http://localhost:5000/api/health` — should return `{"status":"ok","service":"shoplite-api"}`.
-- `GET http://localhost:5000/api/products` — should return `{ "products": [...] }` with the eight seed products.
-
-### Test registration
-
-Send a `POST` request to `http://localhost:5000/api/auth/register` with `Content-Type: application/json` and this body:
-
-```json
-{
-  "name": "Demo Student",
-  "email": "student@example.com",
-  "password": "classroom123"
-}
-```
-
-Expected: `201 Created`, with a `token` and a `user` object. The response must not include `passwordHash`.
-
-### Test login
-
-Send a `POST` request to `http://localhost:5000/api/auth/login`:
-
-```json
-{
-  "email": "student@example.com",
-  "password": "classroom123"
-}
-```
-
-Expected: `200 OK` with a `token` and `user`. Try an incorrect password too; it should return `401`.
+After Stage 5 is assembled, run the seed script, open /api/products and locate the Insulated Bottle.
+Its default price is INR 799; the database stores a number, not formatted currency text.
 
 ---
 
-# Part B — Build the React frontend
+# Stage 2 - Browser pieces and the cart
 
-## 18. Create the React app
+A **component** is a function that returns UI. **Props** are its inputs.
+An event callback tells the parent what the user did.
 
-Open a **second terminal** in the `shoplite` root folder. If you already created `client` with Vite, skip the scaffold command and continue to Step 19.
+The cart stores product IDs and quantities in browser state and localStorage.
+It is not a MongoDB order. Adding a product does not call the order API.
 
-```bash
-npm create vite@latest client -- --template react
-cd client
-npm install
-```
+### Create [client/src/utils/formatPrice.js](./client/src/utils/formatPrice.js)
 
-Create these additional source folders inside `client` before creating the component files:
+Keep INR formatting in one small helper rather than repeating it in every component.
 
-**macOS / Linux:**
-
-```bash
-mkdir -p src/auth src/components src/utils
-```
-
-**Windows PowerShell:**
-
-```powershell
-New-Item -ItemType Directory -Force -Path 'src/auth','src/components','src/utils' | Out-Null
-```
-
-The complete `package.json` for the frontend should contain the usual Vite and React dependencies. If you scaffolded the app with Vite, keep the versions created by the scaffold. The code in this README uses standard React and Vite APIs.
-
-If creating the package by hand, use this `client/package.json`:
-
-
-```json
-{
-  "name": "shoplite-client",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
-}
-```
-
-Then run `npm install` in `client` before starting the app.
-
-## 19. Configure the frontend API URL
-
-Create `client/.env.example`:
-
-
-```dotenv
-VITE_API_URL=http://localhost:5000
-```
-
-Create `client/.env` with the same content. This URL is public browser configuration; **never put `MONGODB_URI` or `JWT_SECRET` in a `VITE_` variable**. Restart Vite after changing `.env`.
-
-## 20. Replace the HTML entry file
-
-Replace `client/index.html` with:
-
-
-```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6137b8" />
-    <meta name="description" content="ShopLite is a student-built full-stack demo store." />
-    <title>ShopLite — Everyday finds</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
-```
-
-## 20.1 Configure Vite for React
-
-Create `client/vite.config.js`:
-
-
-```js
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-});
-```
-
-## 21. Create the reusable API helper
-
-Create `client/src/api.js`:
-
-
-```js
-const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
-
-export async function apiRequest(path, options = {}) {
-  const { token, ...fetchOptions } = options;
-  const headers = new Headers(fetchOptions.headers ?? {});
-
-  if (fetchOptions.body !== undefined && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const body =
-    fetchOptions.body !== undefined && typeof fetchOptions.body !== "string"
-      ? JSON.stringify(fetchOptions.body)
-      : fetchOptions.body;
-
-  let response;
-  try {
-    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers, body });
-  } catch {
-    throw new Error("Cannot reach the API. Check that the backend is running.");
-  }
-
-  const data = response.status === 204
-    ? null
-    : await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || `Request failed (${response.status}).`);
-  }
-  return data;
-}
-```
-
-This helper builds JSON requests, attaches a Bearer token when supplied, parses API responses, and shows useful error messages.
-
-## 22. Create the currency formatter
-
-Create `client/src/utils/formatPrice.js`:
-
-
-```js
+<!-- source: client/src/utils/formatPrice.js -->
+~~~javascript
 const inr = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -926,72 +483,110 @@ const inr = new Intl.NumberFormat("en-IN", {
 export function formatPrice(value) {
   return inr.format(Number(value) || 0);
 }
-```
+~~~
 
-## 23. Create the authentication context
+### Create [client/src/api.js](./client/src/api.js)
 
-Create `client/src/auth/AuthContext.jsx`:
+One helper sends requests and reports failures. Callers pass a path and an options object containing method, body and/or token. Body objects are converted to JSON; existing string bodies and custom headers remain supported.
 
+<!-- source: client/src/api.js -->
+~~~javascript
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
-```jsx
-import { createContext, useContext, useMemo, useState } from "react";
+export async function apiRequest(path, options = {}) {
+  const { token, ...requestOptions } = options;
+  const headers = new Headers(options.headers);
 
-const AuthContext = createContext(null);
-const STORAGE_KEY = "shoplite_session";
+  if (options.body !== undefined) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (typeof options.body !== "string") {
+      requestOptions.body = JSON.stringify(options.body);
+    }
+  }
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  requestOptions.headers = headers;
 
-function readStoredSession() {
+  let response;
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (stored?.token && stored?.user) return stored;
+    response = await fetch(API_URL + path, requestOptions);
   } catch {
-    // If local storage is empty or malformed, begin signed out.
+    throw new Error("Cannot reach the API. Check that the backend is running.");
   }
-  return { token: null, user: null };
+
+  let data = null;
+  if (response.status !== 204) {
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("The API returned an unreadable response. Please try again.");
+    }
+  }
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status}).`;
+    if (data && typeof data.message === "string" && data.message) {
+      message = data.message;
+    }
+    throw new Error(message);
+  }
+  return data;
 }
+~~~
 
-export function AuthProvider({ children }) {
-  const [session, setSessionState] = useState(readStoredSession);
+### Create [client/src/components/ProductCard.jsx](./client/src/components/ProductCard.jsx)
 
-  function setSession(nextSession) {
-    const safeSession = { token: nextSession.token, user: nextSession.user };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSession));
-    setSessionState(safeSession);
-  }
+A card receives a product and an add-to-cart callback. It does not own the whole shop's state.
 
-  function logout() {
-    localStorage.removeItem(STORAGE_KEY);
-    setSessionState({ token: null, user: null });
-  }
+<!-- source: client/src/components/ProductCard.jsx -->
+~~~javascript
+import { formatPrice } from "../utils/formatPrice.js";
 
-  const value = useMemo(
-    () => ({ ...session, setSession, logout }),
-    [session]
+export default function ProductCard({ product, onAddToCart }) {
+  return (
+    <article className="product-card">
+      <div className="product-image-wrap">
+        <img
+          className="product-image"
+          src={product.imageUrl}
+          alt={product.name}
+          loading="lazy"
+          onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
+        />
+        <span className="category-tag">{product.category}</span>
+      </div>
+      <div className="product-content">
+        <h3>{product.name}</h3>
+        <p className="product-description">{product.description}</p>
+        <div className="product-card-footer">
+          <strong>{formatPrice(product.price)}</strong>
+          <button className="button button-primary" type="button" onClick={() => onAddToCart(product._id)}>
+            Add to cart
+          </button>
+        </div>
+      </div>
+    </article>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+~~~
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside AuthProvider.");
-  return context;
-}
-```
+### Create [client/src/components/Navbar.jsx](./client/src/components/Navbar.jsx)
 
-For this classroom project, the token is kept in `localStorage` so students can refresh the page without signing in again. Any JavaScript running on the page can potentially read local storage, so this is **not a production recommendation**. A production app should make a considered session-storage design, commonly using secure `HttpOnly` cookies plus appropriate CSRF defenses. Never store card data here.
+Start with Shop and Cart links, then append My orders when there is a user. No conditional array spread is needed.
 
-## 24. Create the navigation bar
-
-Create `client/src/components/Navbar.jsx`:
-
-
-```jsx
+<!-- source: client/src/components/Navbar.jsx -->
+~~~javascript
 export default function Navbar({ activeView, onNavigate, cartCount, user, onLogout }) {
   const links = [
     { id: "shop", label: "Shop" },
     { id: "cart", label: `Cart (${cartCount})` },
-    ...(user ? [{ id: "orders", label: "My orders" }] : []),
   ];
+  if (user) {
+    links.push({ id: "orders", label: "My orders" });
+  }
 
   return (
     <header className="site-header">
@@ -1027,136 +622,28 @@ export default function Navbar({ activeView, onNavigate, cartCount, user, onLogo
     </header>
   );
 }
-```
+~~~
 
-## 25. Create the product card
+### Create [client/src/components/CartPanel.jsx](./client/src/components/CartPanel.jsx)
 
-Create `client/src/components/ProductCard.jsx`:
+A loop matches cart IDs to products and accumulates the subtotal. The component reports changes through callbacks; App owns the actual cart state.
 
-
-```jsx
+<!-- source: client/src/components/CartPanel.jsx -->
+~~~javascript
 import { formatPrice } from "../utils/formatPrice.js";
 
-export default function ProductCard({ product, onAddToCart }) {
-  return (
-    <article className="product-card">
-      <div className="product-image-wrap">
-        <img
-          className="product-image"
-          src={product.imageUrl}
-          alt={product.name}
-          loading="lazy"
-          onError={(event) => { event.currentTarget.style.visibility = "hidden"; }}
-        />
-        <span className="category-tag">{product.category}</span>
-      </div>
-      <div className="product-content">
-        <h3>{product.name}</h3>
-        <p className="product-description">{product.description}</p>
-        <div className="product-card-footer">
-          <strong>{formatPrice(product.price)}</strong>
-          <button className="button button-primary" type="button" onClick={() => onAddToCart(product._id)}>
-            Add to cart
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-}
-```
-
-## 26. Create the registration and login form
-
-Create `client/src/components/AuthPanel.jsx`:
-
-
-```jsx
-import { useState } from "react";
-import { apiRequest } from "../api.js";
-import { useAuth } from "../auth/AuthContext.jsx";
-
-export default function AuthPanel({ mode, onModeChange, onSuccess }) {
-  const { setSession } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const isRegister = mode === "register";
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setSubmitting(true);
-    try {
-      const data = await apiRequest(isRegister ? "/api/auth/register" : "/api/auth/login", {
-        method: "POST",
-        body: { ...(isRegister ? { name } : {}), email, password },
-      });
-      setSession(data);
-      setPassword("");
-      onSuccess(isRegister ? "Account created. You are signed in." : "Welcome back. You are signed in.");
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setSubmitting(false);
+export default function CartPanel({
+  cart, products, onUpdateQuantity, onRemove, onCheckout, submitting,
+}) {
+  const lines = [];
+  let subtotal = 0;
+  for (const item of cart) {
+    const product = products.find((product) => product._id === item.productId);
+    if (product) {
+      lines.push({ product, productId: item.productId, quantity: item.quantity });
+      subtotal += product.price * item.quantity;
     }
   }
-
-  return (
-    <section className="auth-panel panel">
-      <p className="eyebrow">YOUR SHOPLITE ACCOUNT</p>
-      <h1>{isRegister ? "Create your account" : "Welcome back"}</h1>
-      <p className="muted">{isRegister ? "Create an account to save your orders." : "Log in to place an order and view your history."}</p>
-
-      <form className="stack-form" onSubmit={handleSubmit}>
-        {isRegister && (
-          <label>
-            Full name
-            <input value={name} onChange={(event) => setName(event.target.value)} name="name" autoComplete="name" maxLength={80} required />
-          </label>
-        )}
-        <label>
-          Email
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} name="email" autoComplete="email" required />
-        </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} name="password" autoComplete={isRegister ? "new-password" : "current-password"} minLength={8} required />
-          {isRegister && <span className="field-help">Use at least 8 characters.</span>}
-        </label>
-
-        {error && <p className="alert alert-error" role="alert">{error}</p>}
-        <button className="button button-primary button-wide" type="submit" disabled={submitting}>
-          {submitting ? "Please wait…" : isRegister ? "Create account" : "Log in"}
-        </button>
-      </form>
-
-      <p className="form-switch">
-        {isRegister ? "Already have an account?" : "New to ShopLite?"}{" "}
-        <button className="text-button" type="button" onClick={() => { setError(""); onModeChange(isRegister ? "login" : "register"); }}>
-          {isRegister ? "Log in" : "Create an account"}
-        </button>
-      </p>
-    </section>
-  );
-}
-```
-
-## 27. Create the cart view
-
-Create `client/src/components/CartPanel.jsx`:
-
-
-```jsx
-import { formatPrice } from "../utils/formatPrice.js";
-
-export default function CartPanel({ cart, products, onUpdateQuantity, onRemove, onCheckout, submitting }) {
-  const lines = cart
-    .map((line) => ({ ...line, product: products.find((product) => product._id === line.productId) }))
-    .filter((line) => line.product);
-
-  const subtotal = lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
 
   return (
     <section>
@@ -1204,14 +691,522 @@ export default function CartPanel({ cart, products, onUpdateQuantity, onRemove, 
     </section>
   );
 }
-```
+~~~
 
-## 28. Create order history
+### Explain and check
 
-Create `client/src/components/OrdersPanel.jsx`:
+- Props flow into the card; the callback sends the click back to App.
+- The cart badge counts total quantity, not distinct product types.
+- A quantity is capped at 20. Decreasing to zero removes the item.
+- localStorage persists across refreshes in this browser origin.
+- The cart stays after logout; it is not a per-account or cross-device cart.
+- Search and category filtering use already-loaded browser data, not an API call per keystroke.
 
+**Exercise:** change only the Add to cart button label, verify clicks still work, then restore the label.
+App's state and event handlers are introduced in Stage 5, after all the components exist.
 
-```jsx
+---
+
+# Stage 3 - Accounts and shared login state
+
+Registration validates input, hashes the password and saves a user.
+Login compares the submitted password against that hash.
+Both return a signed token and the public user fields (id, name, email).
+
+Hashing is **not encryption**: the app does not decrypt a password.
+A JWT is a **signed pass**, not an encrypted container. Its signature and expiry are checked on protected requests.
+
+### Create [server/src/models/User.js](./server/src/models/User.js)
+
+passwordHash is excluded from ordinary queries. Login explicitly selects it only for password comparison.
+
+<!-- source: server/src/models/User.js -->
+~~~javascript
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      maxlength: 254,
+    },
+    // select:false keeps the hash out of ordinary queries and API responses.
+    passwordHash: {
+      type: String,
+      required: true,
+      select: false,
+    },
+  },
+  { timestamps: true }
+);
+
+export const User = mongoose.model("User", userSchema);
+~~~
+
+### Create [server/src/routes/authRoutes.js](./server/src/routes/authRoutes.js)
+
+Keep registration and login in one small router. Read the named request body fields, validation, database operation and response in order. Duplicate email errors are handled deliberately.
+
+<!-- source: server/src/routes/authRoutes.js -->
+~~~javascript
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
+
+const router = Router();
+
+function createToken(user) {
+  return jwt.sign(
+    { sub: user._id.toString() },
+    process.env.JWT_SECRET,
+    { expiresIn: "2h" }
+  );
+}
+
+function publicUser(user) {
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+  };
+}
+
+// Stage 3: registration creates an account and returns a signed-in session.
+router.post("/register", async (req, res, next) => {
+  try {
+    const name = req.body?.name;
+    const email = req.body?.email;
+    const password = req.body?.password;
+
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ message: "Name is required." });
+    }
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
+      return res.status(400).json({ message: "A valid email is required." });
+    }
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ message: "An account with this email already exists." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+    });
+
+    return res.status(201).json({ token: createToken(user), user: publicUser(user) });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "An account with this email already exists." });
+    }
+    return next(error);
+  }
+});
+
+router.post("/login", async (req, res) => {
+  const email = req.body?.email;
+  const password = req.body?.password;
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(400).json({ message: "Email and password are required." });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+  let validPassword = false;
+  if (user) {
+    validPassword = await bcrypt.compare(password, user.passwordHash);
+  }
+
+  // Use one message for unknown email and wrong password.
+  if (!validPassword) {
+    return res.status(401).json({ message: "Email or password is incorrect." });
+  }
+
+  res.json({ token: createToken(user), user: publicUser(user) });
+});
+
+export default router;
+~~~
+
+### Create [server/src/middleware/requireAuth.js](./server/src/middleware/requireAuth.js)
+
+Middleware is the gatekeeper before the order handler. A valid token supplies req.userId; missing or invalid authentication returns 401.
+
+<!-- source: server/src/middleware/requireAuth.js -->
+~~~javascript
+import jwt from "jsonwebtoken";
+
+export function requireAuth(req, res, next) {
+  const authorization = req.get("authorization") ?? "";
+  const match = authorization.match(/^Bearer\s+(\S+)$/i);
+
+  if (!match) {
+    return res.status(401).json({ message: "Please log in to continue." });
+  }
+
+  try {
+    const payload = jwt.verify(match[1], process.env.JWT_SECRET);
+    if (typeof payload !== "object" || typeof payload.sub !== "string") {
+      return res.status(401).json({ message: "Invalid or expired token." });
+    }
+    req.userId = payload.sub;
+    return next();
+  } catch {
+    return res.status(401).json({ message: "Invalid or expired token." });
+  }
+}
+~~~
+
+### Create [client/src/auth/AuthContext.jsx](./client/src/auth/AuthContext.jsx)
+
+Context shares the current session with components. A plain value object is enough here; useMemo is unnecessary for this small app.
+
+<!-- source: client/src/auth/AuthContext.jsx -->
+~~~javascript
+import { createContext, useContext, useState } from "react";
+
+const AuthContext = createContext(null);
+const STORAGE_KEY = "shoplite_session";
+
+function readStoredSession() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (stored?.token && stored?.user) {
+      return stored;
+    }
+  } catch (error) {
+    console.warn("Could not read the saved session. Starting signed out.", error);
+  }
+  return { token: null, user: null };
+}
+
+export function AuthProvider({ children }) {
+  // Stage 3: share the same signed-in session with every component.
+  const [session, setSessionState] = useState(readStoredSession);
+
+  function setSession(nextSession) {
+    const safeSession = { token: nextSession.token, user: nextSession.user };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSession));
+    setSessionState(safeSession);
+  }
+
+  function logout() {
+    localStorage.removeItem(STORAGE_KEY);
+    setSessionState({ token: null, user: null });
+  }
+
+  const value = {
+    token: session.token,
+    user: session.user,
+    setSession,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider.");
+  }
+  return context;
+}
+~~~
+
+### Create [client/src/components/AuthPanel.jsx](./client/src/components/AuthPanel.jsx)
+
+Build the request with ordinary assignments and if statements. The same form supports login and registration while keeping waiting and error states visible.
+
+<!-- source: client/src/components/AuthPanel.jsx -->
+~~~javascript
+import { useState } from "react";
+import { apiRequest } from "../api.js";
+import { useAuth } from "../auth/AuthContext.jsx";
+
+export default function AuthPanel({ mode, onModeChange, onSuccess }) {
+  const { setSession } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const isRegister = mode === "register";
+  let buttonLabel = "Log in";
+  if (isRegister) {
+    buttonLabel = "Create account";
+  }
+  if (submitting) {
+    buttonLabel = "Please wait…";
+  }
+
+  function switchMode() {
+    setError("");
+    if (isRegister) {
+      onModeChange("login");
+    } else {
+      onModeChange("register");
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+
+    let path = "/api/auth/login";
+    let message = "Welcome back. You are signed in.";
+    const body = { email, password };
+    if (isRegister) {
+      path = "/api/auth/register";
+      message = "Account created. You are signed in.";
+      body.name = name;
+    }
+
+    try {
+      const data = await apiRequest(path, {
+        method: "POST",
+        body,
+      });
+      setSession(data);
+      setPassword("");
+      onSuccess(message);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="auth-panel panel">
+      <p className="eyebrow">YOUR SHOPLITE ACCOUNT</p>
+      <h1>{isRegister ? "Create your account" : "Welcome back"}</h1>
+      <p className="muted">{isRegister ? "Create an account to save your orders." : "Log in to place an order and view your history."}</p>
+
+      <form className="stack-form" onSubmit={handleSubmit}>
+        {isRegister && (
+          <label>
+            Full name
+            <input value={name} onChange={(event) => setName(event.target.value)} name="name" autoComplete="name" maxLength={80} required />
+          </label>
+        )}
+        <label>
+          Email
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} name="email" autoComplete="email" required />
+        </label>
+        <label>
+          Password
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} name="password" autoComplete={isRegister ? "new-password" : "current-password"} minLength={8} required />
+          {isRegister && <span className="field-help">Use at least 8 characters.</span>}
+        </label>
+
+        {error && <p className="alert alert-error" role="alert">{error}</p>}
+        <button className="button button-primary button-wide" type="submit" disabled={submitting}>
+          {buttonLabel}
+        </button>
+      </form>
+
+      <p className="form-switch">
+        {isRegister ? "Already have an account?" : "New to ShopLite?"}{" "}
+        <button className="text-button" type="button" onClick={switchMode}>
+          {isRegister ? "Log in" : "Create an account"}
+        </button>
+      </p>
+    </section>
+  );
+}
+~~~
+
+### Explain and check
+
+- Registration also signs the user in in this application.
+- Successful authentication returns to the shop. It does not automatically submit checkout.
+- Tokens expire after two hours. There is no refresh-token flow.
+- Logout clears browser session data; it does not revoke an already-issued token on the server.
+- localStorage-based token persistence is a learning choice with production trade-offs.
+- A hidden button is not access control. The server must verify every protected request.
+
+**Exercise:** create a fictitious account, reload, log out, then attempt a wrong password and the correct password.
+Never project a real password or authorization token. Do not paste tokens into an online decoder.
+
+---
+
+# Stage 4 - Save trusted orders
+
+The browser sends **productId and quantity**, not an authoritative price or total.
+The server checks the items, loads current database prices, calculates the amount and saves the order.
+The verified user ID determines ownership.
+
+Example using the default seed data:
+
+~~~text
+2 bottles x INR 799 + 1 lamp x INR 1,499 = INR 3,097
+~~~
+
+### Create [server/src/models/Order.js](./server/src/models/Order.js)
+
+Order items store name and price snapshots so old receipts do not change when the catalogue is edited.
+
+<!-- source: server/src/models/Order.js -->
+~~~javascript
+import mongoose from "mongoose";
+
+const orderItemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    // Snapshot name and price so history remains accurate after catalogue edits.
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true, min: 1, max: 20 },
+  },
+  { _id: false }
+);
+
+const orderSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    items: {
+      type: [orderItemSchema],
+      required: true,
+      validate: {
+        validator: (items) => Array.isArray(items) && items.length > 0,
+        message: "An order needs at least one item.",
+      },
+    },
+    totalAmount: { type: Number, required: true, min: 0 },
+    status: { type: String, enum: ["placed"], default: "placed" },
+  },
+  { timestamps: true }
+);
+
+export const Order = mongoose.model("Order", orderSchema);
+~~~
+
+### Create [server/src/routes/orderRoutes.js](./server/src/routes/orderRoutes.js)
+
+Follow four steps: validate/merge requested items, fetch active products once, build snapshots and total with a loop, then save. The capped cart makes a straightforward array find easy to understand. Order history is filtered on the server.
+
+<!-- source: server/src/routes/orderRoutes.js -->
+~~~javascript
+import { Router } from "express";
+import mongoose from "mongoose";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { Product } from "../models/Product.js";
+import { Order } from "../models/Order.js";
+
+const router = Router();
+
+// Stage 4: validate choices, load prices, calculate the total, save the order.
+router.post("/", requireAuth, async (req, res) => {
+  const items = req.body?.items;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: "Your cart is empty." });
+  }
+  if (items.length > 50) {
+    return res.status(400).json({ message: "Too many line items." });
+  }
+
+  const cartItems = [];
+  for (const item of items) {
+    const productId = item?.productId;
+    const quantity = item?.quantity;
+
+    if (typeof productId !== "string" || !mongoose.isValidObjectId(productId)) {
+      return res.status(400).json({ message: "A cart item has an invalid product ID." });
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+      return res.status(400).json({ message: "Each quantity must be between 1 and 20." });
+    }
+
+    // ObjectId strings can use either letter case; compare one canonical form.
+    const normalizedId = productId.toLowerCase();
+    const existingItem = cartItems.find((line) => line.productId === normalizedId);
+    if (existingItem) {
+      existingItem.quantity += quantity;
+      if (existingItem.quantity > 20) {
+        return res.status(400).json({ message: "Maximum quantity per product is 20." });
+      }
+    } else {
+      cartItems.push({ productId: normalizedId, quantity });
+    }
+  }
+
+  const productIds = cartItems.map((item) => item.productId);
+  const products = await Product.find({ _id: { $in: productIds }, active: true });
+  if (products.length !== cartItems.length) {
+    return res.status(400).json({ message: "One or more products are unavailable." });
+  }
+
+  const orderItems = [];
+  let totalAmount = 0;
+  for (const item of cartItems) {
+    const product = products.find((product) => product._id.toString() === item.productId);
+
+    // Only database prices are trusted; save a snapshot for the receipt.
+    orderItems.push({
+      productId: product._id,
+      name: product.name,
+      price: product.price,
+      quantity: item.quantity,
+    });
+    totalAmount += product.price * item.quantity;
+  }
+
+  const order = await Order.create({
+    user: req.userId,
+    items: orderItems,
+    totalAmount: Number(totalAmount.toFixed(2)),
+    status: "placed",
+  });
+  res.status(201).json({ order });
+});
+
+router.get("/", requireAuth, async (req, res) => {
+  // The verified identity, not a browser-supplied ID, selects whose orders to read.
+  const orders = await Order.find({ user: req.userId }).sort({ createdAt: -1 }).lean();
+  res.json({ orders });
+});
+
+export default router;
+~~~
+
+### Create [client/src/components/OrdersPanel.jsx](./client/src/components/OrdersPanel.jsx)
+
+A named async function loads history. The effect cleanup stops outdated results from updating the screen after navigation or a token change.
+
+<!-- source: client/src/components/OrdersPanel.jsx -->
+~~~javascript
 import { useEffect, useState } from "react";
 import { apiRequest } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
@@ -1224,16 +1219,31 @@ export default function OrdersPanel() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let ignore = false;
-    setLoading(true);
-    setError("");
+    let isActive = true;
 
-    apiRequest("/api/orders", { token })
-      .then((data) => { if (!ignore) setOrders(data.orders); })
-      .catch((requestError) => { if (!ignore) setError(requestError.message); })
-      .finally(() => { if (!ignore) setLoading(false); });
+    async function loadOrders() {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await apiRequest("/api/orders", { token });
+        if (isActive) {
+          setOrders(data.orders);
+        }
+      } catch (requestError) {
+        if (isActive) {
+          setError(requestError.message);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
 
-    return () => { ignore = true; };
+    loadOrders();
+    return () => {
+      isActive = false;
+    };
   }, [token]);
 
   if (loading) return <p className="muted">Loading your orders…</p>;
@@ -1270,15 +1280,145 @@ export default function OrdersPanel() {
     </section>
   );
 }
-```
+~~~
 
-## 29. Create the main application
+### Rules that must stay on the server
 
-Create `client/src/App.jsx`:
+- A checkout needs authentication and at least one item.
+- At most 50 submitted line items are accepted.
+- Product IDs must be valid and point to active products.
+- Quantities must be integers from 1 to 20.
+- Duplicate product entries are combined; the combined quantity must also be at most 20.
+- IDs are normalized before comparison so letter casing does not break a valid ObjectId.
+- Prices come from MongoDB, not the request body.
+- History uses req.userId, not a browser-supplied user ID.
 
+**Exercise:** place a demo order, refresh, reopen My orders, and then try a different account in an incognito session.
+The second account should see only its own orders. Ordinary tabs share localStorage, so they are not independent accounts.
 
-```jsx
-import { useEffect, useMemo, useState } from "react";
+---
+
+# Stage 5 - Connect and run the complete application
+
+Now connect the models, routers and components already created.
+The two programs still have separate entry points.
+
+### Create [server/src/server.js](./server/src/server.js)
+
+The backend entry point configures middleware, mounts the three routers and starts listening after MongoDB connects. The final error middleware receives async route errors from Express 5.
+
+<!-- source: server/src/server.js -->
+~~~javascript
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { connectDB } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be set to a random string of at least 32 characters in server/.env.");
+}
+
+const app = express();
+app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
+app.use(express.json({ limit: "100kb" }));
+
+// Stage 5: connect the routes from the earlier learning stages.
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", service: "shoplite-api" });
+});
+app.use("/api/auth", authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: "API route not found." });
+});
+
+app.use((error, req, res, next) => {
+  console.error(error);
+  if (res.headersSent) {
+    return next(error);
+  }
+  return res.status(500).json({ message: "Something went wrong on the server." });
+});
+
+const port = Number(process.env.PORT) || 5000;
+try {
+  await connectDB();
+  app.listen(port, () => console.log(`ShopLite API listening at http://localhost:${port}`));
+} catch (error) {
+  console.error("Unable to start ShopLite API:", error.message);
+  process.exit(1);
+}
+~~~
+
+### Create [client/index.html](./client/index.html)
+
+Vite loads the browser entry point from this page.
+
+<!-- source: client/index.html -->
+~~~html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#6137b8" />
+    <meta name="description" content="ShopLite is a student-built full-stack demo store." />
+    <title>ShopLite — Everyday finds</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+~~~
+
+### Create [client/vite.config.js](./client/vite.config.js)
+
+Enable React support in Vite; no custom build pipeline is needed.
+
+<!-- source: client/vite.config.js -->
+~~~javascript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+});
+~~~
+
+### Create [client/src/main.jsx](./client/src/main.jsx)
+
+Mount App inside AuthProvider so components can read the session. StrictMode helps detect effect problems in development.
+
+<!-- source: client/src/main.jsx -->
+~~~jsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.jsx";
+import { AuthProvider } from "./auth/AuthContext.jsx";
+import "./styles.css";
+
+createRoot(document.getElementById("root")).render(
+  <StrictMode>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </StrictMode>
+);
+~~~
+
+### Create [client/src/App.jsx](./client/src/App.jsx)
+
+Read the stage labels: product loading and filtering; cart persistence/actions; navigation/auth; checkout; then rendering. State stays in App so filters and selections survive switching between panels.
+
+<!-- source: client/src/App.jsx -->
+~~~jsx
+import { useEffect, useState } from "react";
 import { apiRequest } from "./api.js";
 import { useAuth } from "./auth/AuthContext.jsx";
 import Navbar from "./components/Navbar.jsx";
@@ -1289,14 +1429,24 @@ import OrdersPanel from "./components/OrdersPanel.jsx";
 
 function readCart() {
   try {
-    const parsed = JSON.parse(localStorage.getItem("shoplite_cart") || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((line) =>
-      typeof line.productId === "string" &&
-      Number.isInteger(line.quantity) &&
-      line.quantity >= 1 && line.quantity <= 20
-    );
-  } catch {
+    const savedCart = JSON.parse(localStorage.getItem("shoplite_cart") || "[]");
+    if (!Array.isArray(savedCart)) {
+      console.warn("The saved cart is not a list. Starting with an empty cart.");
+      return [];
+    }
+
+    const validItems = savedCart.filter((item) => {
+      return item &&
+        typeof item.productId === "string" &&
+        Number.isInteger(item.quantity) &&
+        item.quantity >= 1 && item.quantity <= 20;
+    });
+    if (validItems.length !== savedCart.length) {
+      console.warn("Invalid items were removed from the saved cart.");
+    }
+    return validItems;
+  } catch (error) {
+    console.warn("Could not read the saved cart. Starting with an empty cart.", error);
     return [];
   }
 }
@@ -1306,100 +1456,132 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
   const [cart, setCart] = useState(readCart);
   const [view, setView] = useState("shop");
   const [authMode, setAuthMode] = useState("login");
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
   const [notice, setNotice] = useState("");
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
 
+  // Stage 2: load products, then filter the list in the browser.
   useEffect(() => {
-    let ignore = false;
-    setProductsLoading(true);
-    setProductsError("");
-    apiRequest("/api/products")
-      .then((data) => { if (!ignore) setProducts(data.products); })
-      .catch((error) => { if (!ignore) setProductsError(error.message); })
-      .finally(() => { if (!ignore) setProductsLoading(false); });
-    return () => { ignore = true; };
+    let isActive = true;
+
+    async function loadProducts() {
+      setProductsLoading(true);
+      setProductsError("");
+      try {
+        const data = await apiRequest("/api/products");
+        if (isActive) {
+          setProducts(data.products);
+        }
+      } catch (error) {
+        if (isActive) {
+          setProductsError(error.message);
+        }
+      } finally {
+        if (isActive) {
+          setProductsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
+  const categories = [];
+  for (const product of products) {
+    if (!categories.includes(product.category)) {
+      categories.push(product.category);
+    }
+  }
+  categories.sort();
+  categories.unshift("All");
+
+  const searchText = search.trim().toLowerCase();
+  const filteredProducts = products.filter((product) => {
+    const matchesName = product.name.toLowerCase().includes(searchText);
+    const matchesDescription = product.description.toLowerCase().includes(searchText);
+    const matchesCategory = category === "All" || product.category === category;
+    return (matchesName || matchesDescription) && matchesCategory;
+  });
+
+  // Stage 2: cart state belongs to App; localStorage keeps it across refreshes.
   useEffect(() => {
-    localStorage.setItem("shoplite_cart", JSON.stringify(cart));
+    try {
+      localStorage.setItem("shoplite_cart", JSON.stringify(cart));
+    } catch (error) {
+      console.error("Could not save the cart in this browser.", error);
+      setNotice("Your cart could not be saved. It may be lost when you refresh.");
+    }
   }, [cart]);
 
-  const categories = useMemo(
-    () => ["All", ...new Set(products.map((product) => product.category).sort())],
-    [products]
-  );
-  const filteredProducts = useMemo(() => {
-    const text = search.trim().toLowerCase();
-    return products.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(text) || product.description.toLowerCase().includes(text);
-      const matchesCategory = category === "All" || product.category === category;
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, search, category]);
-  const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  let cartCount = 0;
+  for (const item of cart) {
+    cartCount += item.quantity;
+  }
 
+  function addToCart(productId) {
+    setCart((currentCart) => {
+      const existingItem = currentCart.find((item) => item.productId === productId);
+      if (!existingItem) {
+        return [...currentCart, { productId, quantity: 1 }];
+      }
+
+      return currentCart.map((item) => {
+        if (item.productId === productId) {
+          return { productId, quantity: Math.min(item.quantity + 1, 20) };
+        }
+        return item;
+      });
+    });
+    setNotice("Added to cart.");
+  }
+
+  function removeFromCart(productId) {
+    setCart((currentCart) => {
+      return currentCart.filter((item) => item.productId !== productId);
+    });
+  }
+
+  function updateQuantity(productId, quantity) {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    if (quantity > 20) {
+      return;
+    }
+
+    setCart((currentCart) => {
+      return currentCart.map((item) => {
+        if (item.productId === productId) {
+          return { productId, quantity };
+        }
+        return item;
+      });
+    });
+  }
+
+  // Stage 3: navigation changes a panel, not the browser URL.
   function navigate(nextView) {
-    if ((nextView === "orders" || nextView === "checkout") && !token) {
+    const needsLogin = nextView === "orders" || nextView === "checkout";
+    if (needsLogin && !token) {
       setAuthMode("login");
       setView("auth");
       setNotice("Log in or create an account before continuing.");
       return;
     }
+
     setNotice("");
-    setView(nextView === "checkout" ? "cart" : nextView);
-  }
-
-  function addToCart(productId) {
-    setCart((current) => {
-      const existing = current.find((line) => line.productId === productId);
-      if (existing) {
-        return current.map((line) => line.productId === productId
-          ? { ...line, quantity: Math.min(line.quantity + 1, 20) }
-          : line);
-      }
-      return [...current, { productId, quantity: 1 }];
-    });
-    setNotice("Added to cart.");
-  }
-
-  function updateQuantity(productId, quantity) {
-    if (quantity <= 0) {
-      setCart((current) => current.filter((line) => line.productId !== productId));
-      return;
-    }
-    if (quantity > 20) return;
-    setCart((current) => current.map((line) => line.productId === productId ? { ...line, quantity } : line));
-  }
-
-  async function checkout() {
-    if (!token) {
-      setAuthMode("login");
-      setView("auth");
-      setNotice("Log in or create an account before checking out.");
-      return;
-    }
-    if (cart.length === 0 || checkoutSubmitting) return;
-
-    setCheckoutSubmitting(true);
-    setNotice("");
-    try {
-      const data = await apiRequest("/api/orders", {
-        method: "POST",
-        token,
-        body: { items: cart.map(({ productId, quantity }) => ({ productId, quantity })) },
-      });
-      setCart([]);
-      setView("orders");
-      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
-    } catch (error) {
-      setNotice(error.message);
-    } finally {
-      setCheckoutSubmitting(false);
+    if (nextView === "checkout") {
+      setView("cart");
+    } else {
+      setView(nextView);
     }
   }
 
@@ -1414,9 +1596,57 @@ export default function App() {
     setNotice(message);
   }
 
+  // Stage 4: send choices to the server; clear the cart only after success.
+  async function checkout() {
+    if (!token) {
+      setAuthMode("login");
+      setView("auth");
+      setNotice("Log in or create an account before checking out.");
+      return;
+    }
+    if (cart.length === 0 || checkoutSubmitting) {
+      return;
+    }
+
+    const items = cart.map((item) => {
+      return { productId: item.productId, quantity: item.quantity };
+    });
+    setCheckoutSubmitting(true);
+    setNotice("");
+
+    try {
+      const data = await apiRequest("/api/orders", {
+        method: "POST",
+        token,
+        body: { items },
+      });
+      setCart([]);
+      setView("orders");
+      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setCheckoutSubmitting(false);
+    }
+  }
+
+  function scrollToProducts() {
+    const productsSection = document.getElementById("products");
+    if (productsSection) {
+      productsSection.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
   return (
     <div className="app-shell">
-      <Navbar activeView={view} onNavigate={navigate} cartCount={cartCount} user={user} onLogout={handleLogout} />
+      <Navbar
+        activeView={view}
+        onNavigate={navigate}
+        cartCount={cartCount}
+        user={user}
+        onLogout={handleLogout}
+      />
+
       <main className="page-container">
         {notice && <p className="alert alert-info" role="status">{notice}</p>}
 
@@ -1426,90 +1656,106 @@ export default function App() {
               <div>
                 <p className="eyebrow">GOOD FINDS. EVERYDAY PRICES.</p>
                 <h1>Small things.<br /><span>Better everyday.</span></h1>
-                <p className="hero-copy">A simple, student-built store for useful things that make daily life easier.</p>
-                <button className="button button-primary" type="button" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>Explore products</button>
+                <p className="hero-copy">
+                  A simple, student-built store for useful things that make daily life easier.
+                </p>
+                <button className="button button-primary" type="button" onClick={scrollToProducts}>
+                  Explore products
+                </button>
               </div>
               <div className="hero-art" aria-hidden="true">
-                <span className="hero-orbit orbit-one" /><span className="hero-orbit orbit-two" />
-                <span className="hero-bag">S</span><span className="hero-spark spark-one">✦</span><span className="hero-spark spark-two">✳</span>
+                <span className="hero-orbit orbit-one" />
+                <span className="hero-orbit orbit-two" />
+                <span className="hero-bag">S</span>
+                <span className="hero-spark spark-one">✦</span>
+                <span className="hero-spark spark-two">✳</span>
               </div>
             </section>
 
             <section id="products" className="products-section">
               <div className="section-heading">
-                <div><p className="eyebrow">THE SHOP</p><h2>Find your next favourite</h2></div>
+                <div>
+                  <p className="eyebrow">THE SHOP</p>
+                  <h2>Find your next favourite</h2>
+                </div>
                 <span className="muted">{filteredProducts.length} product(s)</span>
               </div>
+
               <div className="filter-bar">
                 <label className="search-field">
-                  <span className="sr-only">Search products</span><span aria-hidden="true">⌕</span>
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products…" />
+                  <span className="sr-only">Search products</span>
+                  <span aria-hidden="true">⌕</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search products…"
+                  />
                 </label>
                 <label className="category-field">
                   <span className="sr-only">Filter by category</span>
                   <select value={category} onChange={(event) => setCategory(event.target.value)}>
-                    {categories.map((value) => <option key={value} value={value}>{value}</option>)}
+                    {categories.map((value) => (
+                      <option key={value} value={value}>{value}</option>
+                    ))}
                   </select>
                 </label>
               </div>
 
               {productsLoading && <p className="muted">Loading products…</p>}
-              {productsError && <p className="alert alert-error" role="alert">{productsError} Check that the backend is running and MongoDB is connected.</p>}
+              {productsError && (
+                <p className="alert alert-error" role="alert">
+                  {productsError} Check that the backend is running and MongoDB is connected.
+                </p>
+              )}
               {!productsLoading && !productsError && filteredProducts.length === 0 && (
-                <div className="empty-state panel"><h3>No products found</h3><p className="muted">Try another search or category.</p></div>
+                <div className="empty-state panel">
+                  <h3>No products found</h3>
+                  <p className="muted">Try another search or category.</p>
+                </div>
               )}
               {!productsLoading && !productsError && filteredProducts.length > 0 && (
-                <div className="product-grid">{filteredProducts.map((product) => <ProductCard key={product._id} product={product} onAddToCart={addToCart} />)}</div>
+                <div className="product-grid">
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product._id} product={product} onAddToCart={addToCart} />
+                  ))}
+                </div>
               )}
             </section>
           </>
         )}
 
         {view === "cart" && (
-          <CartPanel cart={cart} products={products} onUpdateQuantity={updateQuantity}
-            onRemove={(productId) => setCart((current) => current.filter((line) => line.productId !== productId))}
-            onCheckout={checkout} submitting={checkoutSubmitting} />
+          <CartPanel
+            cart={cart}
+            products={products}
+            onUpdateQuantity={updateQuantity}
+            onRemove={removeFromCart}
+            onCheckout={checkout}
+            submitting={checkoutSubmitting}
+          />
         )}
-        {view === "auth" && <AuthPanel mode={authMode} onModeChange={setAuthMode} onSuccess={handleAuthSuccess} />}
+        {view === "auth" && (
+          <AuthPanel mode={authMode} onModeChange={setAuthMode} onSuccess={handleAuthSuccess} />
+        )}
         {view === "orders" && token && <OrdersPanel />}
       </main>
+
       <footer className="site-footer">
-        <strong>shoplite</strong><span>A full-stack learning project by CodeEmy.</span><span>Demo checkout only · No real payments</span>
+        <strong>shoplite</strong>
+        <span>A full-stack learning project by CodeEmy.</span>
+        <span>Demo checkout only · No real payments</span>
       </footer>
     </div>
   );
 }
-```
+~~~
 
-The main component loads products from Express, maintains search/category/cart state, sends order requests, and switches between the Shop, Cart, Auth, and Orders views.
+### Create [client/src/styles.css](./client/src/styles.css)
 
-## 30. Mount React and the authentication provider
+The existing responsive design is preserved. Students can treat this as a supplied stylesheet and focus on behavior first.
 
-Replace `client/src/main.jsx` with:
-
-
-```jsx
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
-import { AuthProvider } from "./auth/AuthContext.jsx";
-import "./styles.css";
-
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </StrictMode>
-);
-```
-
-## 31. Add all styling
-
-Replace `client/src/styles.css` with this complete stylesheet:
-
-
-```css
+<!-- source: client/src/styles.css -->
+~~~css
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root {
@@ -1669,169 +1915,756 @@ h3 { font-size: 1.06rem; }
   .category-field select { min-height: 40px; }
   .section-heading { align-items: start; flex-direction: column; }
 }
-```
+~~~
+
+## First run from an empty-folder build
+
+All application files now exist. Start from the project root in two terminals.
+
+**Terminal A:**
+
+~~~powershell
+Set-Location .\server
+npm.cmd install
+npm.cmd run seed
+npm.cmd run dev
+~~~
+
+**Terminal B:**
+
+~~~powershell
+Set-Location .\client
+npm.cmd install
+npm.cmd run dev
+~~~
+
+Complete the Stage 0 database/environment setup first.
+Keep both dev servers running. Visit the frontend URL printed by Vite.
+
+## Follow one product request
+
+~~~text
+App's effect calls loadProducts()
+ -> apiRequest("/api/products")
+ -> Express products router
+ -> Product.find({ active: true })
+ -> MongoDB result
+ -> { products: [...] }
+ -> setProducts(data.products)
+ -> React renders ProductCard components
+~~~
+
+The effect's isActive flag prevents a late response from setting state after cleanup.
+It does not cancel the HTTP request. Development StrictMode can run an additional setup/cleanup cycle.
+
+## Follow one checkout
+
+~~~text
+Click Place demo order
+ -> App checks session and cart
+ -> POST /api/orders with token, product IDs and quantities
+ -> requireAuth verifies identity
+ -> route validates items and calculates database prices
+ -> Order.create saves the receipt
+ -> { order } returns with HTTP 201
+ -> App clears the cart and opens My orders
+ -> OrdersPanel requests GET /api/orders
+ -> { orders: [...] } returns only this user's history
+~~~
+
+When checkout fails, show the message and keep the cart. When it succeeds, clear the cart.
+Disabling the button reduces repeat clicks; it is **not** a server-side exactly-once/idempotency guarantee.
+After a refresh, App returns to the shop view; reopen My orders to see saved orders.
+
+## API reference
+
+| Method | Path | Body | Response | Protected? |
+|---|---|---|---|---|
+| GET | /api/health | None | { status, service } | No |
+| GET | /api/products | None | { products } | No |
+| POST | /api/auth/register | { name, email, password } | { token, user } | No |
+| POST | /api/auth/login | { email, password } | { token, user } | No |
+| POST | /api/orders | { items: [{ productId, quantity }] } | { order } | Yes |
+| GET | /api/orders | None | { orders } | Yes |
+
+Protected requests use an Authorization header with the Bearer scheme and the issued token.
+The address bar can demonstrate GET requests; use the application or an API client for JSON POST requests.
+Common statuses are 200/201 (success), 400 (invalid input), 401 (authentication failure), 404 (unknown route), 409 (email conflict) and 500 (unexpected server error).
 
 ---
 
-# Part C — Run the complete application
+# Stage 6 - Check understanding and behavior
 
-## 32. Start both servers
+## Manual checklist
 
-Use two terminals. Do not stop the backend terminal while using the frontend.
+1. Open /api/health, then /api/products. Health alone does not test every database operation.
+2. Browse products; search name/description and combine it with a category.
+3. Add, increment, decrement and remove cart items; verify the quantity cap of 20.
+4. Refresh and verify the cart survives.
+5. Try checkout signed out; expect the authentication screen, not a saved order.
+6. Register, log out, try incorrect credentials, and log in correctly.
+7. Return to the cart and place a demo order.
+8. With default seed prices, two bottles plus a lamp should total INR 3,097.
+9. Refresh, reopen My orders and confirm persistence.
+10. Sign in as another test user and confirm private history.
+11. Check that failed API requests produce visible errors rather than pretending to succeed.
 
-**Terminal 1 — API and MongoDB connection** (from `shoplite/server`):
+## Optional instructor tests
 
-```bash
-npm run seed
-npm run dev
-```
+The test dependencies do not run in the production app.
+These tests use **real Express routes, real MongoDB queries and a real Chromium browser**.
+mongodb-memory-server starts an isolated MongoDB process with throwaway data; it is not a mock of the database API.
+The first run downloads a MongoDB binary (large on Windows) and Chromium, so prepare before class.
 
-Run `npm run seed` again only if you need to add/update the sample catalogue. You do not need to reseed after each restart.
+The test database does not use your classroom connection string, seed or real accounts.
+The helper creates its own random signing secret and test products, then stops the owned processes.
+Backend tests use temporary ports. Browser tests require ports **5105 and 5175** to be free and deliberately refuse to reuse an existing server.
 
-**Terminal 2 — React app** (from `shoplite/client`):
+**Backend tests:**
 
-```bash
-npm run dev
-```
+~~~powershell
+Set-Location .\server
+npm.cmd test
+~~~
 
-Open the local URL that Vite prints; normally `http://localhost:5173`.
+**Browser tests, from a fresh root terminal:**
 
-## 33. Test the full user journey
+~~~powershell
+Set-Location .\client
+npx.cmd playwright install chromium
+npm.cmd test
+npm.cmd run build
+~~~
 
-Run these tests in order:
+Install dependencies in both folders before browser tests. Playwright starts the API and Vite for you.
+Most browser journeys cross the real API/database boundary; a small number deliberately simulate network/server failures to check error UI.
+Tests block external image/font requests so third-party availability does not determine the result.
 
-1. The shop displays products from MongoDB.
-2. Search for `watch`; the product list filters immediately.
-3. Choose a category; only matching products remain.
-4. Add two different items to the cart.
-5. Increase/decrease quantities and remove an item; the subtotal updates.
-6. Click **Log in** and switch to **Create an account**.
-7. Register a test user with a valid email and a password of at least eight characters.
-8. After registration, return to the cart and place a demo order.
-9. Open **My orders**; the order and total should appear.
-10. Refresh the browser; the classroom session should still be present.
-11. Log out; **My orders** should no longer be in the navigation.
-12. Register a second user, place an order, and check that each account only sees its own order history.
+If the first browser run times out while downloading MongoDB, finish the backend test run once, then retry.
+If binary downloads are blocked by your network, report that limitation; do not change the tests to silently use a live database.
 
-## 34. API endpoints
+### What the tests cover
 
-| Method | Endpoint | Auth required? | Purpose |
-|---|---|---|---|
-| `GET` | `/api/health` | No | Health check |
-| `GET` | `/api/products` | No | Active product catalogue |
-| `POST` | `/api/auth/register` | No | Register and return JWT |
-| `POST` | `/api/auth/login` | No | Log in and return JWT |
-| `POST` | `/api/orders` | Yes | Create order from IDs and quantities |
-| `GET` | `/api/orders` | Yes | Current user's order history |
+- Active product filtering, sorting and read-back after a database change.
+- Registration, hashed passwords, normalized email and duplicate accounts.
+- Incorrect credentials, missing/invalid/expired tokens.
+- Trusted checkout totals, duplicate quantities and invalid carts.
+- Historical price snapshots and user-specific orders.
+- Browser search/category interaction, cart persistence and quantity controls.
+- Session persistence, logout/login, complete checkout and failed-checkout behavior.
 
-For an API client, call a protected endpoint with this header:
+### Complete test source (instructor appendix)
 
-```text
-Authorization: Bearer YOUR_TOKEN_HERE
-```
+You can skip reading this appendix during the introductory lesson.
+If rebuilding every file from scratch and using npm test, create these files as well.
 
-`POST /api/orders` expects:
+### Create [server/tests/helpers.js](./server/tests/helpers.js)
 
-```json
-{
-  "items": [
-    { "productId": "COPY_A_REAL_PRODUCT_MONGODB_ID_HERE", "quantity": 2 }
-  ]
+Shared isolated database/server setup and cleanup.
+
+<!-- source: server/tests/helpers.js -->
+~~~javascript
+import { execFile, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { once } from "node:events";
+import net from "node:net";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import mongoose from "mongoose";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { Product } from "../src/models/Product.js";
+import { User } from "../src/models/User.js";
+
+async function unusedPort() {
+  const socket = net.createServer();
+  socket.listen(0, "127.0.0.1");
+  await once(socket, "listening");
+  const port = socket.address().port;
+  await new Promise((resolve) => socket.close(resolve));
+  return port;
 }
-```
 
-Use a real `_id` from `GET /api/products`. The body intentionally has no price or total.
+export async function startTestServer(requestedPort) {
+  const database = await MongoMemoryServer.create({ instance: { launchTimeout: 60000 } });
+  let child;
 
-## 35. Common errors and fixes
+  async function stop() {
+    if (child && child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, "exit");
+      child.kill();
+      await exited;
+    }
+    await mongoose.disconnect();
+    await database.stop();
+  }
 
-### `MONGODB_URI is missing`
+  try {
+    await mongoose.connect(database.getUri());
+    await User.init();
+    const products = await Product.create([
+      { name: "Insulated Bottle", slug: "bottle", description: "A reusable bottle", category: "Lifestyle", price: 799, imageUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" },
+      { name: "Desk Lamp", slug: "lamp", description: "A study light", category: "Home", price: 1499, imageUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" },
+      { name: "Hidden Product", slug: "hidden", description: "Not for sale", category: "Home", price: 10, active: false },
+    ]);
+    const port = requestedPort || await unusedPort();
+    const url = `http://127.0.0.1:${port}`;
+    const secret = randomBytes(32).toString("hex");
+    child = spawn(process.execPath, [fileURLToPath(new URL("../src/server.js", import.meta.url))], {
+      env: {
+        ...process.env,
+        PORT: String(port),
+        MONGODB_URI: database.getUri(),
+        JWT_SECRET: secret,
+        CLIENT_ORIGIN: "http://127.0.0.1:5175",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let logs = "";
+    child.stdout.on("data", (data) => { logs += data; });
+    child.stderr.on("data", (data) => { logs += data; });
+    let spawnError;
+    child.on("error", (error) => { spawnError = error; });
+    let ready = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (spawnError) throw spawnError;
+      if (child.exitCode !== null) throw new Error(`Test server exited: ${logs}`);
+      try {
+        const response = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(500) });
+        if (response.ok) {
+          ready = true;
+          break;
+        }
+      } catch (error) {
+        if (attempt === 99) throw new Error(`Test server did not become ready: ${logs}`, { cause: error });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (!ready) throw new Error(`Test server did not become ready: ${logs}`);
 
-Ensure `shoplite/server/.env` exists and contains `MONGODB_URI=...`. The file must be in the `server` folder, not `client`.
+    async function request(path, { method = "GET", body, token } = {}) {
+      const headers = {};
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(url + path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return { status: response.status, data: await response.json() };
+    }
 
-### MongoDB connection timeout
+    async function seed() {
+      return promisify(execFile)(
+        process.execPath,
+        [fileURLToPath(new URL("../src/seed/seedProducts.js", import.meta.url))],
+        { env: { ...process.env, MONGODB_URI: database.getUri() } },
+      );
+    }
 
-For local MongoDB, confirm the service is running and that the URI uses `127.0.0.1:27017`. For Atlas, verify the database user, password encoding, and network access/IP allow-list.
+    return { url, request, products, secret, seed, stop };
+  } catch (error) {
+    await stop();
+    throw error;
+  }
+}
 
-### `JWT_SECRET must be set...`
+export async function register(request, email) {
+  const response = await request("/api/auth/register", {
+    method: "POST",
+    body: { name: "Student", email, password: "classroom-test-password" },
+  });
+  if (response.status !== 201) throw new Error(JSON.stringify(response));
+  return response.data;
+}
+~~~
 
-Set `JWT_SECRET` in `server/.env` to a random value of at least 32 characters, then restart the backend. Never expose it in frontend code.
+### Create [server/tests/products.test.js](./server/tests/products.test.js)
 
-### CORS error or `Failed to fetch`
+Product route behavior and database read-back.
 
-Keep the backend at port 5000 and Vite at port 5173, or update `CLIENT_ORIGIN` and `VITE_API_URL` to match your actual ports. Restart both servers after editing env files.
+<!-- source: server/tests/products.test.js -->
+~~~javascript
+import { after, before, test } from "node:test";
+import assert from "node:assert/strict";
+import { startTestServer } from "./helpers.js";
+import { Product } from "../src/models/Product.js";
 
-### No product cards appear
+let app;
+before(async () => { app = await startTestServer(); });
+after(async () => { if (app) await app.stop(); });
 
-Check that `npm run seed` completed, MongoDB contains products, and `GET http://localhost:5000/api/products` returns `{ "products": [...] }`.
+test("catalogue returns active products in name order and reflects database updates", async () => {
+  const first = await app.request("/api/products");
+  assert.equal(first.status, 200);
+  assert.deepEqual(first.data.products.map((product) => product.name), ["Desk Lamp", "Insulated Bottle"]);
 
-### Duplicate email
+  await Product.updateOne({ slug: "bottle" }, { $set: { price: 899 } });
+  const second = await app.request("/api/products");
+  assert.equal(second.data.products.find((product) => product.slug === "bottle").price, 899);
+  assert.equal((await app.request("/api/orders")).status, 401);
+  assert.equal((await app.request("/api/not-a-route")).status, 404);
+});
 
-Registration returns `409` for an email already in the database. Use a different email or log in with the existing account.
+test("seeding updates matching slugs without duplicating the eight demo products", async () => {
+  await app.seed();
+  assert.equal(await Product.countDocuments(), 11);
+  await Product.updateOne({ slug: "insulated-bottle" }, { $set: { price: 1 } });
+  await app.seed();
+  assert.equal(await Product.countDocuments(), 11);
+  const result = await app.request("/api/products");
+  assert.equal(result.data.products.length, 10);
+  assert.equal(result.data.products.find((product) => product.slug === "insulated-bottle").price, 799);
+});
+~~~
 
-### `401 Please log in to continue`
+### Create [server/tests/auth.test.js](./server/tests/auth.test.js)
 
-Log in again. The JWT expires after two hours; logging out and logging back in obtains a new token.
+Account lifecycle, password storage and authentication failure.
 
-### Product image does not load
+<!-- source: server/tests/auth.test.js -->
+~~~javascript
+import { after, before, test } from "node:test";
+import assert from "node:assert/strict";
+import bcrypt from "bcryptjs";
+import { startTestServer, register } from "./helpers.js";
+import { User } from "../src/models/User.js";
 
-This sample uses remote Unsplash image URLs, which require an internet connection. Try another `imageUrl` or use local images from `client/public`.
+let app;
+before(async () => { app = await startTestServer(); });
+after(async () => { if (app) await app.stop(); });
 
-### Port already in use
+test("registration hashes passwords, normalizes email and supports later login", async () => {
+  const session = await register(app.request, " STUDENT@example.com ");
+  assert.equal(session.user.email, "student@example.com");
+  assert.equal(session.user.passwordHash, undefined);
+  assert.ok(session.token);
+  const stored = await User.findOne({ email: session.user.email }).select("+passwordHash");
+  assert.notEqual(stored.passwordHash, "classroom-test-password");
+  assert.equal(await bcrypt.compare("classroom-test-password", stored.passwordHash), true);
 
-Stop the process using the port, or change `PORT` in `server/.env` and `VITE_API_URL` in `client/.env` to the matching backend port.
+  const login = await app.request("/api/auth/login", {
+    method: "POST", body: { email: "STUDENT@example.com", password: "classroom-test-password" },
+  });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.id, session.user.id);
+  assert.equal(login.data.user.passwordHash, undefined);
 
-## 36. Security notes for students
+  const wrong = await app.request("/api/auth/login", {
+    method: "POST", body: { email: session.user.email, password: "wrong-password" },
+  });
+  const unknown = await app.request("/api/auth/login", {
+    method: "POST", body: { email: "nobody@example.com", password: "wrong-password" },
+  });
+  assert.equal(wrong.status, 401);
+  assert.deepEqual(wrong, unknown);
+  const duplicate = await app.request("/api/auth/register", {
+    method: "POST", body: { name: "Student", email: session.user.email, password: "classroom-test-password" },
+  });
+  assert.equal(duplicate.status, 409);
+});
 
-- Never store plain-text passwords. This project stores bcrypt hashes.
-- Never send `JWT_SECRET` or the MongoDB URI to the browser.
-- Validate user input on the server even when the React form has validation.
-- Never trust a client-supplied total or product price.
-- Enforce order ownership in database queries, not just in the frontend.
-- This is a teaching demo, not a production e-commerce platform. Before real deployment, add rate limits, stronger validation, a robust secret-management plan, secure cookie/session design, audit logging, monitoring, and a full security review. Use a payment provider rather than collecting card data directly.
+test("invalid registration and missing or invalid tokens are rejected", async () => {
+  for (const body of [
+    { name: "", email: "a@example.com", password: "long-password" },
+    { name: "A", email: "bad", password: "long-password" },
+    { name: "A", email: "a@example.com", password: "short" },
+  ]) {
+    assert.equal((await app.request("/api/auth/register", { method: "POST", body })).status, 400);
+  }
+  assert.equal((await app.request("/api/orders")).status, 401);
+  assert.equal((await app.request("/api/orders", { token: "invalid-token" })).status, 401);
+});
+~~~
 
-## 37. Suggested three-session classroom schedule
+### Create [server/tests/orders.test.js](./server/tests/orders.test.js)
 
-### Day 1 — Storefront and cart (90 min)
+Checkout integrity, validation and private persistent history.
 
-- 0–10: Architecture, UI sketch, and component plan.
-- 10–25: Vite app setup, React entry point, and CSS.
-- 25–45: Product card and product grid.
-- 45–60: Search, categories, and empty state.
-- 60–80: Cart, quantity controls, removal, and subtotal.
-- 80–90: Responsive check and recap.
+<!-- source: server/tests/orders.test.js -->
+~~~javascript
+import { after, before, test } from "node:test";
+import assert from "node:assert/strict";
+import jwt from "jsonwebtoken";
+import { startTestServer, register } from "./helpers.js";
+import { Product } from "../src/models/Product.js";
 
-### Day 2 — Express, MongoDB, and auth API (90 min)
+let app;
+before(async () => { app = await startTestServer(); });
+after(async () => { if (app) await app.stop(); });
 
-- 0–10: Client/server/database request flow.
-- 10–25: Express setup, environment variables, and MongoDB connection.
-- 25–40: User/Product/Order models and product seeding.
-- 40–65: Registration, password hashing, login, JWT, and middleware.
-- 65–80: Product and order endpoints.
-- 80–90: Test endpoints with Postman/Thunder Client.
+test("checkout calculates trusted totals, merges quantities and preserves private history", async () => {
+  const alice = await register(app.request, "alice@example.com");
+  const bob = await register(app.request, "bob@example.com");
+  const [bottle, lamp] = app.products;
+  const placed = await app.request("/api/orders", {
+    method: "POST", token: alice.token,
+    body: {
+      user: bob.user.id, totalAmount: 1,
+      items: [
+        { productId: bottle.id, quantity: 1, price: 1 },
+        { productId: bottle.id, quantity: 1 },
+        { productId: lamp.id, quantity: 1 },
+      ],
+    },
+  });
+  assert.equal(placed.status, 201);
+  assert.equal(placed.data.order.totalAmount, 3097);
+  assert.equal(placed.data.order.user, alice.user.id);
+  assert.equal(placed.data.order.status, "placed");
+  assert.equal(placed.data.order.items.length, 2);
+  assert.equal(placed.data.order.items[0].quantity, 2);
 
-### Day 3 — Connect React, checkout, and order history (90 min)
+  await Product.updateOne({ _id: bottle.id }, { $set: { name: "New bottle name", price: 1 } });
+  const history = await app.request("/api/orders", { token: alice.token });
+  assert.equal(history.data.orders[0].items[0].name, "Insulated Bottle");
+  assert.equal(history.data.orders[0].items[0].price, 799);
+  assert.equal(history.data.orders[0].totalAmount, 3097);
+  assert.deepEqual((await app.request("/api/orders", { token: bob.token })).data.orders, []);
+  assert.equal((await app.request("/api/orders", { method: "POST", body: { items: [] } })).status, 401);
+  const expired = jwt.sign({ sub: alice.user.id }, app.secret, { expiresIn: -1 });
+  assert.equal((await app.request("/api/orders", { token: expired })).status, 401);
+});
 
-- 0–15: API helper and load products from MongoDB.
-- 15–30: Registration/login UI and auth context.
-- 30–45: Bearer token requests and protected order creation.
-- 45–60: Order history and user ownership.
-- 60–75: End-to-end testing and debugging.
-- 75–90: Student challenge and review.
+test("checkout rejects bad IDs, unavailable products and invalid or excessive quantities", async () => {
+  const session = await register(app.request, "validation@example.com");
+  const bottleId = app.products[0].id;
+  const invalidCarts = [
+    [], [null], [{ productId: "invalid", quantity: 1 }],
+    [{ productId: "000000000000000000000001", quantity: 1 }],
+    [{ productId: app.products[2].id, quantity: 1 }],
+    ...[0, -1, 21, 1.5, "2"].map((quantity) => [{ productId: bottleId, quantity }]),
+    [{ productId: bottleId, quantity: 11 }, { productId: bottleId, quantity: 10 }],
+    Array.from({ length: 51 }, () => ({ productId: bottleId, quantity: 1 })),
+  ];
+  for (const items of invalidCarts) {
+    const result = await app.request("/api/orders", { method: "POST", token: session.token, body: { items } });
+    assert.equal(result.status, 400, JSON.stringify(items));
+    assert.equal(typeof result.data.message, "string");
+  }
+  assert.deepEqual((await app.request("/api/orders", { token: session.token })).data.orders, []);
+});
 
-## 38. Final checklist
+test("mixed-case ObjectIds refer to the same product and share the quantity limit", async () => {
+  const session = await register(app.request, "id-case@example.com");
+  const productId = app.products[1].id;
+  const body = { items: [
+    { productId: productId.toUpperCase(), quantity: 10 },
+    { productId, quantity: 10 },
+  ] };
+  const valid = await app.request("/api/orders", { method: "POST", token: session.token, body });
+  assert.equal(valid.status, 201);
+  assert.equal(valid.data.order.items.length, 1);
+  assert.equal(valid.data.order.items[0].quantity, 20);
+  assert.equal(valid.data.order.totalAmount, 29980);
+  body.items[0].quantity = 11;
+  const invalid = await app.request("/api/orders", { method: "POST", token: session.token, body });
+  assert.equal(invalid.status, 400);
+  assert.equal((await app.request("/api/orders", { token: session.token })).data.orders.length, 1);
+});
+~~~
 
-- [ ] Backend starts without errors.
-- [ ] MongoDB is connected.
-- [ ] Product seed succeeds.
-- [ ] Product list loads in React.
-- [ ] Search and category filtering work.
-- [ ] Cart quantities and subtotal work.
-- [ ] Register and login work.
-- [ ] Password hashes—not plain-text passwords—are stored.
-- [ ] Protected checkout requires a valid token.
-- [ ] Order totals are calculated by the backend.
-- [ ] Orders persist in MongoDB.
-- [ ] Users only see their own orders.
-- [ ] No secrets are committed or exposed in frontend variables.
+### Create [server/tests/start-test-server.js](./server/tests/start-test-server.js)
 
-**Congratulations — you have built ShopLite from an empty workspace into a working React + Express + MongoDB learning application.**
+Start a disposable API for browser tests and clean up on shutdown.
+
+<!-- source: server/tests/start-test-server.js -->
+~~~javascript
+import { startTestServer } from "./helpers.js";
+
+const app = await startTestServer(5105);
+console.log(`Isolated browser-test API ready at ${app.url}`);
+
+let stopping = false;
+async function stop() {
+  if (stopping) return;
+  stopping = true;
+  await app.stop();
+  process.exit(0);
+}
+
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+~~~
+
+### Create [client/playwright.config.js](./client/playwright.config.js)
+
+Start isolated test servers and select Chromium; keep test output separate.
+
+<!-- source: client/playwright.config.js -->
+~~~javascript
+import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+
+const apiScript = fileURLToPath(new URL("../server/tests/start-test-server.js", import.meta.url));
+
+export default defineConfig({
+  testDir: "./tests",
+  workers: 1,
+  use: {
+    baseURL: "http://127.0.0.1:5175",
+    browserName: "chromium",
+    headless: true,
+    screenshot: "only-on-failure",
+    trace: "retain-on-failure",
+  },
+  webServer: [
+    {
+      command: `node "${apiScript}"`,
+      url: "http://127.0.0.1:5105/api/health",
+      timeout: 600000,
+      reuseExistingServer: false,
+    },
+    {
+      command: "npm run dev -- --host 127.0.0.1 --port 5175 --strictPort",
+      url: "http://127.0.0.1:5175",
+      env: { VITE_API_URL: "http://127.0.0.1:5105" },
+      reuseExistingServer: false,
+    },
+  ],
+});
+~~~
+
+### Create [client/tests/helpers.js](./client/tests/helpers.js)
+
+Browser setup, runtime-error checking and test registration helper.
+
+<!-- source: client/tests/helpers.js -->
+~~~javascript
+import { randomUUID } from "node:crypto";
+import { test as base, expect } from "@playwright/test";
+
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    await page.route("https://**", (route) => route.abort());
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await use(page);
+    expect(errors).toEqual([]);
+  },
+});
+export { expect };
+
+export async function signUp(page) {
+  const email = `${randomUUID()}@example.com`;
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await page.getByLabel("Full name").fill("Student");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("classroom-test-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("Hi, Student")).toBeVisible();
+  return email;
+}
+~~~
+
+### Create [client/tests/storefront.spec.js](./client/tests/storefront.spec.js)
+
+Catalogue and cart user journeys.
+
+<!-- source: client/tests/storefront.spec.js -->
+~~~javascript
+import { test, expect } from "./helpers.js";
+
+test("search, category and cart updates persist across refresh", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Add to cart", exact: true })).toHaveCount(2);
+  await page.getByRole("textbox", { name: "Search products" }).fill("bottle");
+  await expect(page.getByRole("button", { name: "Add to cart", exact: true })).toHaveCount(1);
+  await page.getByRole("combobox", { name: "Filter by category" }).selectOption("Home");
+  await expect(page.getByText("No products found")).toBeVisible();
+  await page.getByRole("combobox", { name: "Filter by category" }).selectOption("All");
+  await page.getByRole("button", { name: "Add to cart", exact: true }).click();
+  await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+  const increase = page.getByRole("button", { name: "Increase quantity" });
+  for (let count = 1; count < 20; count++) await increase.click();
+  await expect(increase).toBeDisabled();
+  await page.reload();
+  await page.getByRole("button", { name: "Cart (20)", exact: true }).click();
+  await expect(increase).toBeDisabled();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.getByText("Your cart is empty")).toBeVisible();
+});
+
+test("product request failure is visible instead of an empty catalogue", async ({ page }) => {
+  await page.route("**/api/products", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("Cannot reach the API");
+  await expect(page.getByText("No products found")).toHaveCount(0);
+});
+
+test("unreadable API responses show an explicit error", async ({ page }) => {
+  await page.route("**/api/products", (route) => route.fulfill({
+    status: 200, contentType: "text/html", body: "<h1>Not JSON</h1>",
+  }));
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("The API returned an unreadable response");
+});
+
+test("saved cart validation keeps valid items and removing the last unit empties the cart", async ({ page, request }) => {
+  const response = await request.get("http://127.0.0.1:5105/api/products");
+  const { products } = await response.json();
+  await page.addInitScript((productId) => {
+    localStorage.setItem("shoplite_cart", JSON.stringify([
+      null, { productId, quantity: 1 }, { productId, quantity: 21 },
+    ]));
+  }, products[0]._id);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Decrease quantity" }).click();
+  await expect(page.getByText("Your cart is empty")).toBeVisible();
+});
+
+test("unavailable browser storage produces a visible persistence warning", async ({ page }) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => { throw new DOMException("Storage blocked", "SecurityError"); };
+  });
+  await page.goto("/");
+  await expect(page.getByRole("status")).toContainText("Your cart could not be saved");
+  await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "Cart (1)", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Your cart could not be saved");
+});
+
+test("search remains selected after a cart visit", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "Search products" }).fill("bottle");
+  await page.getByRole("button", { name: "Add to cart", exact: true }).click();
+  await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Shop", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Search products" })).toHaveValue("bottle");
+  await expect(page.getByRole("button", { name: "Add to cart", exact: true })).toHaveCount(1);
+});
+
+test("request helper preserves string bodies, custom headers and empty successful responses", async ({ page }) => {
+  await page.goto("/");
+  await page.route("**/api/helper-check", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.postData()).toBe('{"example":true}');
+    expect(request.headers()["x-classroom"]).toBe("yes");
+    expect(request.headers().authorization).toBe("Bearer test-session");
+    await route.fulfill({ status: 204 });
+  });
+  const result = await page.evaluate(async () => {
+    const { apiRequest } = await import("/src/api.js");
+    return apiRequest("/api/helper-check", {
+      method: "POST",
+      token: "test-session",
+      body: '{"example":true}',
+      headers: { "X-Classroom": "yes" },
+    });
+  });
+  expect(result).toBeNull();
+});
+~~~
+
+### Create [client/tests/account.spec.js](./client/tests/account.spec.js)
+
+Registration, reload, logout and login journey.
+
+<!-- source: client/tests/account.spec.js -->
+~~~javascript
+import { test, expect, signUp } from "./helpers.js";
+
+test("registration persists session; logout and login handle incorrect credentials", async ({ page }) => {
+  await page.goto("/");
+  const email = await signUp(page);
+  await page.reload();
+  await expect(page.getByText("Hi, Student")).toBeVisible();
+  await page.getByRole("button", { name: "Log out", exact: true }).click();
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("incorrect-password");
+  await page.getByRole("button", { name: "Log in", exact: true }).last().click();
+  await expect(page.getByRole("alert")).toHaveText("Email or password is incorrect.");
+  await page.getByLabel("Password").fill("classroom-test-password");
+  await page.getByRole("button", { name: "Log in", exact: true }).last().click();
+  await expect(page.getByText("Hi, Student")).toBeVisible();
+});
+~~~
+
+### Create [client/tests/checkout.spec.js](./client/tests/checkout.spec.js)
+
+Complete order lifecycle and failure recovery.
+
+<!-- source: client/tests/checkout.spec.js -->
+~~~javascript
+import { test, expect, signUp } from "./helpers.js";
+
+test("checkout requires login, saves a trusted order and isolates another user's history", async ({ page }) => {
+  await page.goto("/");
+  const bottle = page.locator("article").filter({ has: page.getByRole("heading", { name: "Insulated Bottle" }) });
+  await bottle.getByRole("button", { name: "Add to cart", exact: true }).click();
+  await bottle.getByRole("button", { name: "Add to cart", exact: true }).click();
+  const lamp = page.locator("article").filter({ has: page.getByRole("heading", { name: "Desk Lamp" }) });
+  await lamp.getByRole("button", { name: "Add to cart", exact: true }).click();
+  await page.getByRole("button", { name: "Cart (3)", exact: true }).click();
+  await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await page.getByRole("button", { name: "Shop", exact: true }).click();
+  await signUp(page);
+  await page.getByRole("button", { name: "Cart (3)", exact: true }).click();
+  const responsePromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/orders") && response.request().method() === "POST");
+  await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(201);
+  const { order } = await response.json();
+  expect(order.totalAmount).toBe(3097);
+  await expect(page.getByText(order._id, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cart (0)", exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "My orders", exact: true }).click();
+  await expect(page.getByText(order._id, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Log out", exact: true }).click();
+  await signUp(page);
+  await page.getByRole("button", { name: "My orders", exact: true }).click();
+  await expect(page.getByText("No orders yet")).toBeVisible();
+  await expect(page.getByText(order._id, { exact: true })).toHaveCount(0);
+});
+
+test("failed checkout keeps the cart and shows the API error", async ({ page }) => {
+  await page.goto("/");
+  await signUp(page);
+  await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+  await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+  await page.route("**/api/orders", (route) => route.fulfill({
+    status: 400, contentType: "application/json",
+    body: JSON.stringify({ message: "One or more products are unavailable." }),
+  }));
+  await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("One or more products are unavailable.");
+  await expect(page.getByRole("button", { name: "Cart (1)", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Place demo order", exact: true })).toBeEnabled();
+});
+~~~
+
+## Troubleshooting
+
+| Symptom | Check first | Next step |
+|---|---|---|
+| npm.ps1 cannot run | PowerShell execution policy | Use npm.cmd; do not change machine policy for this lesson |
+| Vite or Express module missing | Dependencies installed in correct folder? | Run npm.cmd ci in an existing checkout |
+| Backend does not start | Backend terminal and configuration | Check database availability and required server settings |
+| Empty catalogue | /api/products response and intended database | Seed only the correct disposable classroom DB |
+| API unreachable | API process and client API origin | Start backend and align VITE_API_URL |
+| CORS rejection | Actual browser origin | Match CLIENT_ORIGIN and restart backend |
+| Orders return 401 | Missing or expired session | Log out and log in again |
+| Cart storage warning | Browser storage permissions or corrupted data | Restore access/clear only the affected ShopLite storage key |
+| Image missing | External image host/network | Continue using product names and prices |
+| Test startup fails | Download permissions and test port availability | Finish binary installation; free only processes you own |
+
+Do not disable browser security to fix CORS.
+Do not delete important databases to fix seeding.
+Do not expose secrets in logs, source control or screenshots.
+
+## Production limitations
+
+This is a learning project, not a production-commerce template.
+Before deployment, review HTTPS, session storage and token revocation/refresh, rate limiting, validation, money representation, idempotency, inventory handling and operational testing.
+Order status is currently only placed. Prices use JavaScript numbers and two-decimal rounding.
+There is no payment gateway or delivery workflow.
+
+## A final student explanation
+
+> "React shows the products and remembers the cart. The browser calls Express, which checks requests and talks to MongoDB. Login gives us a signed token. At checkout, the server checks the items, calculates current database prices, saves the order and shows only our own order history."

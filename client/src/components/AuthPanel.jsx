@@ -10,19 +10,45 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const isRegister = mode === "register";
+  let buttonLabel = "Log in";
+  if (isRegister) {
+    buttonLabel = "Create account";
+  }
+  if (submitting) {
+    buttonLabel = "Please wait…";
+  }
+
+  function switchMode() {
+    setError("");
+    if (isRegister) {
+      onModeChange("login");
+    } else {
+      onModeChange("register");
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
     setSubmitting(true);
+
+    let path = "/api/auth/login";
+    let message = "Welcome back. You are signed in.";
+    const body = { email, password };
+    if (isRegister) {
+      path = "/api/auth/register";
+      message = "Account created. You are signed in.";
+      body.name = name;
+    }
+
     try {
-      const data = await apiRequest(isRegister ? "/api/auth/register" : "/api/auth/login", {
+      const data = await apiRequest(path, {
         method: "POST",
-        body: { ...(isRegister ? { name } : {}), email, password },
+        body,
       });
       setSession(data);
       setPassword("");
-      onSuccess(isRegister ? "Account created. You are signed in." : "Welcome back. You are signed in.");
+      onSuccess(message);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -55,13 +81,13 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
 
         {error && <p className="alert alert-error" role="alert">{error}</p>}
         <button className="button button-primary button-wide" type="submit" disabled={submitting}>
-          {submitting ? "Please wait…" : isRegister ? "Create account" : "Log in"}
+          {buttonLabel}
         </button>
       </form>
 
       <p className="form-switch">
         {isRegister ? "Already have an account?" : "New to ShopLite?"}{" "}
-        <button className="text-button" type="button" onClick={() => { setError(""); onModeChange(isRegister ? "login" : "register"); }}>
+        <button className="text-button" type="button" onClick={switchMode}>
           {isRegister ? "Log in" : "Create an account"}
         </button>
       </p>

@@ -21,9 +21,12 @@ function publicUser(user) {
   };
 }
 
+// Stage 3: registration creates an account and returns a signed-in session.
 router.post("/register", async (req, res, next) => {
   try {
-    const { name, email, password } = req.body ?? {};
+    const name = req.body?.name;
+    const email = req.body?.email;
+    const password = req.body?.password;
 
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ message: "Name is required." });
@@ -60,25 +63,26 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-router.post("/login", async (req, res, next) => {
-  try {
-    const { email, password } = req.body ?? {};
-    if (typeof email !== "string" || typeof password !== "string") {
-      return res.status(400).json({ message: "Email and password are required." });
-    }
-
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select("+passwordHash");
-    const validPassword = user ? await bcrypt.compare(password, user.passwordHash) : false;
-
-    // Use one message for unknown email and wrong password.
-    if (!user || !validPassword) {
-      return res.status(401).json({ message: "Email or password is incorrect." });
-    }
-
-    return res.json({ token: createToken(user), user: publicUser(user) });
-  } catch (error) {
-    return next(error);
+router.post("/login", async (req, res) => {
+  const email = req.body?.email;
+  const password = req.body?.password;
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(400).json({ message: "Email and password are required." });
   }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+  let validPassword = false;
+  if (user) {
+    validPassword = await bcrypt.compare(password, user.passwordHash);
+  }
+
+  // Use one message for unknown email and wrong password.
+  if (!validPassword) {
+    return res.status(401).json({ message: "Email or password is incorrect." });
+  }
+
+  res.json({ token: createToken(user), user: publicUser(user) });
 });
 
 export default router;

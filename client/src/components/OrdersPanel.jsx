@@ -10,16 +10,31 @@ export default function OrdersPanel() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let ignore = false;
-    setLoading(true);
-    setError("");
+    let isActive = true;
 
-    apiRequest("/api/orders", { token })
-      .then((data) => { if (!ignore) setOrders(data.orders); })
-      .catch((requestError) => { if (!ignore) setError(requestError.message); })
-      .finally(() => { if (!ignore) setLoading(false); });
+    async function loadOrders() {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await apiRequest("/api/orders", { token });
+        if (isActive) {
+          setOrders(data.orders);
+        }
+      } catch (requestError) {
+        if (isActive) {
+          setError(requestError.message);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
 
-    return () => { ignore = true; };
+    loadOrders();
+    return () => {
+      isActive = false;
+    };
   }, [token]);
 
   if (loading) return <p className="muted">Loading your orders…</p>;

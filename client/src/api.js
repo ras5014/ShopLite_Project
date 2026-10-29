@@ -1,34 +1,44 @@
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export async function apiRequest(path, options = {}) {
-  const { token, ...fetchOptions } = options;
-  const headers = new Headers(fetchOptions.headers ?? {});
+  const { token, ...requestOptions } = options;
+  const headers = new Headers(options.headers);
 
-  if (fetchOptions.body !== undefined && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  if (options.body !== undefined) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (typeof options.body !== "string") {
+      requestOptions.body = JSON.stringify(options.body);
+    }
   }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-
-  const body =
-    fetchOptions.body !== undefined && typeof fetchOptions.body !== "string"
-      ? JSON.stringify(fetchOptions.body)
-      : fetchOptions.body;
+  requestOptions.headers = headers;
 
   let response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers, body });
+    response = await fetch(API_URL + path, requestOptions);
   } catch {
     throw new Error("Cannot reach the API. Check that the backend is running.");
   }
 
-  const data = response.status === 204
-    ? null
-    : await response.json().catch(() => ({}));
+  let data = null;
+  if (response.status !== 204) {
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("The API returned an unreadable response. Please try again.");
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || `Request failed (${response.status}).`);
+    let message = `Request failed (${response.status}).`;
+    if (data && typeof data.message === "string" && data.message) {
+      message = data.message;
+    }
+    throw new Error(message);
   }
   return data;
 }
