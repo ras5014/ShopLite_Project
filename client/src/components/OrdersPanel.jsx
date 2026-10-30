@@ -1,44 +1,21 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { formatPrice } from "../utils/formatPrice.js";
 
 export default function OrdersPanel() {
-  const { token } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { token, user } = useAuth();
+  const ordersQuery = useQuery({
+    queryKey: ["orders", user?.id],
+    queryFn: ({ signal }) => apiRequest("/api/orders", { token, signal }),
+    enabled: Boolean(token && user),
+  });
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadOrders() {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await apiRequest("/api/orders", { token });
-        if (isActive) {
-          setOrders(data.orders);
-        }
-      } catch (requestError) {
-        if (isActive) {
-          setError(requestError.message);
-        }
-      } finally {
-        if (isActive) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadOrders();
-    return () => {
-      isActive = false;
-    };
-  }, [token]);
-
-  if (loading) return <p className="muted">Loading your orders…</p>;
-  if (error) return <p className="alert alert-error" role="alert">{error}</p>;
+  if (ordersQuery.isPending) return <p className="muted">Loading your orders…</p>;
+  if (ordersQuery.isError) {
+    return <p className="alert alert-error" role="alert">{ordersQuery.error.message}</p>;
+  }
+  const orders = ordersQuery.data.orders;
 
   return (
     <section>

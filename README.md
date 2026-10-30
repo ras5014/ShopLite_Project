@@ -1,6 +1,6 @@
 # ShopLite - Learn full-stack development in clear stages
 
-**CodeEmy | React + Vite + Node.js + Express + MongoDB**
+**CodeEmy | React + React Hook Form + TanStack Query + Vite + Node.js + Express + MongoDB**
 
 ShopLite is a small online shop for students who already know basic HTML, CSS and JavaScript.
 This guide contains the **complete application source**, setup instructions, exercises and optional automated tests.
@@ -26,10 +26,10 @@ No money is collected when you place a demo order.
 |---|---|---|
 | 0. Prepare | What do we need to run two programs? | Folders, packages, configuration |
 | 1. Products | How does the server return products? | Schema, model, route, JSON |
-| 2. Browser and cart | How does a click change the screen? | Components, props, state, loops |
-| 3. Accounts | How do we recognize a customer? | Forms, hashing, context, JWT |
-| 4. Orders | How do we save a trusted purchase? | Middleware, validation, ownership |
-| 5. Connect the pieces | How does the whole app run? | App state, effects, route mounting |
+| 2. Browser and cart | How does a click change the screen? | Components, props, local state, queries |
+| 3. Accounts | How do we recognize a customer? | React Hook Form, mutations, hashing, context, JWT |
+| 4. Orders | How do we save a trusted purchase? | Middleware, validation, private query cache |
+| 5. Connect the pieces | How does the whole app run? | QueryClientProvider, cart effect, route mounting |
 | 6. Verify | How do we know it still works? | Manual checks and optional tests |
 
 These are **teaching stages within one complete application**, not separate incomplete versions.
@@ -42,7 +42,8 @@ If you already have this project, do not recreate or overwrite its files: use th
 ### What was simplified for beginners
 
 - Ordinary loops replace unnecessary Set/Map construction and reduce-based totals.
-- Named async functions use try/catch instead of chained request callbacks.
+- React Hook Form handles form values and validation instead of a state variable for each input.
+- TanStack Query handles server data, loading, errors and caching instead of request effects.
 - Simple if statements replace nested ternaries and conditional object spreads.
 - State-derived values are calculated directly; this small catalogue does not need useMemo.
 - JSX and event handlers are spaced out so students can follow one action at a time.
@@ -50,6 +51,18 @@ If you already have this project, do not recreate or overwrite its files: use th
 - Security checks stay in place: simpler code does **not** mean trusting the browser.
 
 We still use map/filter/find where they clearly express a list operation, and functional state setters when the next cart depends on its previous value.
+
+### Three kinds of state, three simple tools
+
+| Kind of data | Tool | Example |
+|---|---|---|
+| Local UI choices | React useState | Search text, category, current panel, cart |
+| Form input and validation | React Hook Form useForm | Name, email, password and field errors |
+| Data from / sent to the API | TanStack Query | Products, order history and submitted requests |
+
+**React Query** is now called **TanStack Query**; this project uses **@tanstack/react-query v5**, not the older react-query package.
+It still calls the existing apiRequest helper and the same Express API. No backend framework or endpoint changed.
+React Hook Form v7 is installed as **react-hook-form**. No schema-validation library is needed for these three simple fields.
 
 ## A simple mental model
 
@@ -67,7 +80,7 @@ Browser (React)
 Express API (Node.js)
     -> Mongoose query
 MongoDB
-    -> query result -> JSON response -> React state -> updated screen
+    -> query result -> JSON response -> Query cache -> updated React screen
 ~~~
 
 React does not connect directly to MongoDB. The browser also does not decide the trusted order total.
@@ -110,9 +123,9 @@ Default addresses:
 
 | Day | Teach | Practical task |
 |---|---|---|
-| 1 | Working demo, components, state, search and browser cart | Change a label and verify cart behavior |
-| 2 | Product API, JSON, MongoDB models and registration | Inspect a request in DevTools |
-| 3 | Login, token checks, checkout and private order history | Place an order and compare two users |
+| 1 | Working demo, components, local state, product query and cart | Change a label and verify cart behavior |
+| 2 | Product API, JSON, MongoDB models and React Hook Form | Inspect a request and trigger field validation |
+| 3 | Login mutation, token checks, checkout and private order queries | Place orders and compare two users |
 
 Install dependencies and rehearse **before class**. In 4.5 hours, teach a guided walkthrough and small edits rather than typing every file.
 The [teaching guide](./teaching/Teaching_Guide.md) includes timings and discussion questions.
@@ -233,7 +246,7 @@ The backend scripts run the server, seed example products and run optional tests
 
 ### Create [client/package.json](./client/package.json)
 
-Vite runs/builds the React app. Playwright is a development-only browser test runner, not an application dependency.
+Vite runs/builds React. react-hook-form manages auth forms; @tanstack/react-query manages API reads and writes. Playwright is a development-only browser test runner.
 
 <!-- source: client/package.json -->
 ~~~json
@@ -249,10 +262,12 @@ Vite runs/builds the React app. Playwright is a development-only browser test ru
     "test": "playwright test"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.0.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-hook-form": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0"
@@ -468,6 +483,10 @@ An event callback tells the parent what the user did.
 The cart stores product IDs and quantities in browser state and localStorage.
 It is not a MongoDB order. Adding a product does not call the order API.
 
+The products query uses **queryKey: ["products"]** as its cache label and a **queryFn** that calls the API.
+Read the result through productsQuery.data.products. Use isPending, isError and isSuccess for UI states.
+Search and category stay as ordinary local state: they are not submitted forms, so they do not need React Hook Form.
+
 ### Create [client/src/utils/formatPrice.js](./client/src/utils/formatPrice.js)
 
 Keep INR formatting in one small helper rather than repeating it in every component.
@@ -487,7 +506,7 @@ export function formatPrice(value) {
 
 ### Create [client/src/api.js](./client/src/api.js)
 
-One helper sends requests and reports failures. Callers pass a path and an options object containing method, body and/or token. Body objects are converted to JSON; existing string bodies and custom headers remain supported.
+One helper sends requests and reports failures. Callers pass method, body, token and/or signal. Query functions pass TanStack Query's AbortSignal through this helper to fetch. String bodies and custom headers remain supported.
 
 <!-- source: client/src/api.js -->
 ~~~javascript
@@ -880,11 +899,12 @@ export function requireAuth(req, res, next) {
 
 ### Create [client/src/auth/AuthContext.jsx](./client/src/auth/AuthContext.jsx)
 
-Context shares the current session with components. A plain value object is enough here; useMemo is unnecessary for this small app.
+Context shares the session. useQueryClient accesses the provider's cache; changing or clearing a session removes private order queries and cancels their in-flight fetches. The public catalogue cache is kept.
 
 <!-- source: client/src/auth/AuthContext.jsx -->
 ~~~javascript
 import { createContext, useContext, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "shoplite_session";
@@ -904,15 +924,19 @@ function readStoredSession() {
 export function AuthProvider({ children }) {
   // Stage 3: share the same signed-in session with every component.
   const [session, setSessionState] = useState(readStoredSession);
+  const queryClient = useQueryClient();
 
   function setSession(nextSession) {
     const safeSession = { token: nextSession.token, user: nextSession.user };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSession));
+    // Remove private cached data and cancel its requests when the session changes.
+    queryClient.removeQueries({ queryKey: ["orders"] });
     setSessionState(safeSession);
   }
 
   function logout() {
     localStorage.removeItem(STORAGE_KEY);
+    queryClient.removeQueries({ queryKey: ["orders"] });
     setSessionState({ token: null, user: null });
   }
 
@@ -937,22 +961,30 @@ export function useAuth() {
 
 ### Create [client/src/components/AuthPanel.jsx](./client/src/components/AuthPanel.jsx)
 
-Build the request with ordinary assignments and if statements. The same form supports login and registration while keeping waiting and error states visible.
+useForm owns input values and field errors. handleSubmit validates before calling submitForm; a useMutation sends the request. Await mutateAsync so React Hook Form tracks submission until the request and session update finish.
 
 <!-- source: client/src/components/AuthPanel.jsx -->
 ~~~javascript
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 export default function AuthPanel({ mode, onModeChange, onSuccess }) {
   const { setSession } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const isRegister = mode === "register";
+  const {
+    register, handleSubmit, resetField, clearErrors, setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: { name: "", email: "", password: "" },
+    shouldUnregister: true,
+  });
+  const authMutation = useMutation({
+    mutationFn: ({ path, body }) => apiRequest(path, { method: "POST", body }),
+  });
+  const submitting = isSubmitting || authMutation.isPending;
+
   let buttonLabel = "Log in";
   if (isRegister) {
     buttonLabel = "Create account";
@@ -962,7 +994,8 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
   }
 
   function switchMode() {
-    setError("");
+    clearErrors();
+    authMutation.reset();
     if (isRegister) {
       onModeChange("login");
     } else {
@@ -970,32 +1003,24 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
     }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setSubmitting(true);
-
+  async function submitForm(values) {
+    clearErrors("root.server");
     let path = "/api/auth/login";
     let message = "Welcome back. You are signed in.";
-    const body = { email, password };
+    const body = { email: values.email, password: values.password };
     if (isRegister) {
       path = "/api/auth/register";
       message = "Account created. You are signed in.";
-      body.name = name;
+      body.name = values.name;
     }
 
     try {
-      const data = await apiRequest(path, {
-        method: "POST",
-        body,
-      });
+      const data = await authMutation.mutateAsync({ path, body });
       setSession(data);
-      setPassword("");
+      resetField("password");
       onSuccess(message);
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      setError("root.server", { message: error.message });
     }
   }
 
@@ -1005,24 +1030,61 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
       <h1>{isRegister ? "Create your account" : "Welcome back"}</h1>
       <p className="muted">{isRegister ? "Create an account to save your orders." : "Log in to place an order and view your history."}</p>
 
-      <form className="stack-form" onSubmit={handleSubmit}>
+      <form className="stack-form" onSubmit={handleSubmit(submitForm)} noValidate>
         {isRegister && (
-          <label>
-            Full name
-            <input value={name} onChange={(event) => setName(event.target.value)} name="name" autoComplete="name" maxLength={80} required />
-          </label>
+          <div>
+            <label htmlFor="auth-name">Full name</label>
+            <input
+              id="auth-name"
+              autoComplete="name"
+              maxLength={80}
+              disabled={authMutation.isPending}
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "name-error" : undefined}
+              {...register("name", {
+                required: "Name is required.",
+                validate: (value) => Boolean(value.trim()) || "Name is required.",
+                maxLength: { value: 80, message: "Name must be 80 characters or fewer." },
+              })}
+            />
+            {errors.name && <p id="name-error" className="field-help danger-text" role="alert">{errors.name.message}</p>}
+          </div>
         )}
-        <label>
-          Email
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} name="email" autoComplete="email" required />
-        </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} name="password" autoComplete={isRegister ? "new-password" : "current-password"} minLength={8} required />
-          {isRegister && <span className="field-help">Use at least 8 characters.</span>}
-        </label>
+        <div>
+          <label htmlFor="auth-email">Email</label>
+          <input
+            id="auth-email"
+            type="email"
+            autoComplete="email"
+            disabled={authMutation.isPending}
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email", {
+              required: "Email is required.",
+              pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "A valid email is required." },
+            })}
+          />
+          {errors.email && <p id="email-error" className="field-help danger-text" role="alert">{errors.email.message}</p>}
+        </div>
+        <div>
+          <label htmlFor="auth-password">Password</label>
+          <input
+            id="auth-password"
+            type="password"
+            autoComplete={isRegister ? "new-password" : "current-password"}
+            disabled={authMutation.isPending}
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : isRegister ? "password-help" : undefined}
+            {...register("password", {
+              required: "Password is required.",
+              minLength: { value: 8, message: "Password must be at least 8 characters." },
+            })}
+          />
+          {isRegister && <span id="password-help" className="field-help">Use at least 8 characters.</span>}
+          {errors.password && <p id="password-error" className="field-help danger-text" role="alert">{errors.password.message}</p>}
+        </div>
 
-        {error && <p className="alert alert-error" role="alert">{error}</p>}
+        {errors.root?.server && <p className="alert alert-error" role="alert">{errors.root.server.message}</p>}
         <button className="button button-primary button-wide" type="submit" disabled={submitting}>
           {buttonLabel}
         </button>
@@ -1030,7 +1092,7 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
 
       <p className="form-switch">
         {isRegister ? "Already have an account?" : "New to ShopLite?"}{" "}
-        <button className="text-button" type="button" onClick={switchMode}>
+        <button className="text-button" type="button" onClick={switchMode} disabled={submitting}>
           {isRegister ? "Log in" : "Create an account"}
         </button>
       </p>
@@ -1039,12 +1101,29 @@ export default function AuthPanel({ mode, onModeChange, onSuccess }) {
 }
 ~~~
 
+### Read the form in five steps
+
+1. **useForm({ defaultValues })** creates the form with empty name, email and password.
+2. **register("email", rules)** attaches the input's name, ref and change handlers. No manual value/onChange pair is needed.
+3. **handleSubmit(submitForm)** validates, focuses an invalid field (in registration order) and calls submitForm only for valid input.
+4. **authMutation.mutateAsync({ path, body })** sends the login or registration request.
+5. On success, save the session and reset the password. On failure, **setError("root.server", ...)** displays the API error in the form.
+
+The form uses **noValidate** so React Hook Form displays explicit inline errors instead of browser validation popups.
+Required fields, name length/whitespace, email format and the existing eight-character password minimum are checked.
+aria-invalid and aria-describedby connect the errors to their fields. The server still performs its own validation.
+
+**shouldUnregister: true** removes the registration-only name when switching to login, so it cannot block login or appear in its request.
+Switching modes clears field/server errors and mutation state. Email/password stay while switching; name is cleared when its input unmounts.
+While submitting, the submit and mode-switch buttons are disabled; input fields are disabled while the API mutation is pending.
+These UI guards reduce duplicate clicks but are not backend idempotency.
+
 ### Explain and check
 
 - Registration also signs the user in in this application.
 - Successful authentication returns to the shop. It does not automatically submit checkout.
 - Tokens expire after two hours. There is no refresh-token flow.
-- Logout clears browser session data; it does not revoke an already-issued token on the server.
+- Logout clears browser session data and private query data; it does not revoke an already-issued token on the server.
 - localStorage-based token persistence is a learning choice with production trade-offs.
 - A hidden button is not access control. The server must verify every protected request.
 
@@ -1203,51 +1282,28 @@ export default router;
 
 ### Create [client/src/components/OrdersPanel.jsx](./client/src/components/OrdersPanel.jsx)
 
-A named async function loads history. The effect cleanup stops outdated results from updating the screen after navigation or a token change.
+useQuery reads history under ['orders', user.id], only when signed in. The queryFn passes the token for authentication and signal for cancellation. Loading and errors come from the query, not separate useState/useEffect code.
 
 <!-- source: client/src/components/OrdersPanel.jsx -->
 ~~~javascript
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { formatPrice } from "../utils/formatPrice.js";
 
 export default function OrdersPanel() {
-  const { token } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { token, user } = useAuth();
+  const ordersQuery = useQuery({
+    queryKey: ["orders", user?.id],
+    queryFn: ({ signal }) => apiRequest("/api/orders", { token, signal }),
+    enabled: Boolean(token && user),
+  });
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadOrders() {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await apiRequest("/api/orders", { token });
-        if (isActive) {
-          setOrders(data.orders);
-        }
-      } catch (requestError) {
-        if (isActive) {
-          setError(requestError.message);
-        }
-      } finally {
-        if (isActive) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadOrders();
-    return () => {
-      isActive = false;
-    };
-  }, [token]);
-
-  if (loading) return <p className="muted">Loading your orders…</p>;
-  if (error) return <p className="alert alert-error" role="alert">{error}</p>;
+  if (ordersQuery.isPending) return <p className="muted">Loading your orders…</p>;
+  if (ordersQuery.isError) {
+    return <p className="alert alert-error" role="alert">{ordersQuery.error.message}</p>;
+  }
+  const orders = ordersQuery.data.orders;
 
   return (
     <section>
@@ -1281,6 +1337,14 @@ export default function OrdersPanel() {
   );
 }
 ~~~
+
+### Why the query key includes the user
+
+Products are public, but orders belong to one user. **["orders", user.id]** keeps different users' cached results separate.
+Do not put passwords or bearer tokens in cache keys. The token is sent only as request authentication.
+AuthContext removes the order queries on login/logout; removing them also cancels their pending queries.
+The Query cache is memory-only, not saved to localStorage. The existing cart/session persistence remains separate.
+Cached order data may be shown while a repeat visit refetches; if that refetch fails (for example, an expired token), the panel shows the error instead of the old list.
 
 ### Rules that must stay on the server
 
@@ -1393,32 +1457,48 @@ export default defineConfig({
 
 ### Create [client/src/main.jsx](./client/src/main.jsx)
 
-Mount App inside AuthProvider so components can read the session. StrictMode helps detect effect problems in development.
+Create one QueryClient outside the component tree and wrap AuthProvider/App in QueryClientProvider. Every query, mutation and session cache cleanup uses this same client. Keep StrictMode enabled.
 
 <!-- source: client/src/main.jsx -->
 ~~~jsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.jsx";
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import "./styles.css";
 
+// Keep classroom requests predictable: show errors without automatic retries.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+    mutations: { retry: false },
+  },
+});
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </QueryClientProvider>
   </StrictMode>
 );
 ~~~
 
 ### Create [client/src/App.jsx](./client/src/App.jsx)
 
-Read the stage labels: product loading and filtering; cart persistence/actions; navigation/auth; checkout; then rendering. State stays in App so filters and selections survive switching between panels.
+useQuery owns products; useMutation owns checkout pending/success/error states. Local state still owns filters, navigation, notices and the cart. The only remaining App effect saves the cart to localStorage.
 
 <!-- source: client/src/App.jsx -->
 ~~~jsx
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./api.js";
 import { useAuth } from "./auth/AuthContext.jsx";
 import Navbar from "./components/Navbar.jsx";
@@ -1453,45 +1533,41 @@ function readCart() {
 
 export default function App() {
   const { token, user, logout } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState("");
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState(readCart);
   const [view, setView] = useState("shop");
   const [authMode, setAuthMode] = useState("login");
   const [notice, setNotice] = useState("");
-  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
 
-  // Stage 2: load products, then filter the list in the browser.
-  useEffect(() => {
-    let isActive = true;
+  // Stage 2: Query owns server data; React state owns filters and the cart.
+  const productsQuery = useQuery({
+    queryKey: ["products"],
+    queryFn: ({ signal }) => apiRequest("/api/products", { signal }),
+  });
+  const products = productsQuery.data?.products ?? [];
 
-    async function loadProducts() {
-      setProductsLoading(true);
-      setProductsError("");
-      try {
-        const data = await apiRequest("/api/products");
-        if (isActive) {
-          setProducts(data.products);
-        }
-      } catch (error) {
-        if (isActive) {
-          setProductsError(error.message);
-        }
-      } finally {
-        if (isActive) {
-          setProductsLoading(false);
-        }
+  const checkoutMutation = useMutation({
+    mutationFn: ({ items, token }) => apiRequest("/api/orders", {
+      method: "POST",
+      token,
+      body: { items },
+    }),
+    onSuccess: (data, submitted) => {
+      // A late response from a previous session must not change this user's UI.
+      if (submitted.token !== token) return;
+      queryClient.invalidateQueries({ queryKey: ["orders", user.id] });
+      setCart([]);
+      setView("orders");
+      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
+    },
+    onError: (error, submitted) => {
+      if (submitted.token === token) {
+        setNotice(error.message);
       }
-    }
-
-    loadProducts();
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    },
+  });
 
   const categories = [];
   for (const product of products) {
@@ -1597,37 +1673,22 @@ export default function App() {
   }
 
   // Stage 4: send choices to the server; clear the cart only after success.
-  async function checkout() {
+  function checkout() {
     if (!token) {
       setAuthMode("login");
       setView("auth");
       setNotice("Log in or create an account before checking out.");
       return;
     }
-    if (cart.length === 0 || checkoutSubmitting) {
+    if (cart.length === 0 || checkoutMutation.isPending) {
       return;
     }
 
     const items = cart.map((item) => {
       return { productId: item.productId, quantity: item.quantity };
     });
-    setCheckoutSubmitting(true);
     setNotice("");
-
-    try {
-      const data = await apiRequest("/api/orders", {
-        method: "POST",
-        token,
-        body: { items },
-      });
-      setCart([]);
-      setView("orders");
-      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
-    } catch (error) {
-      setNotice(error.message);
-    } finally {
-      setCheckoutSubmitting(false);
-    }
+    checkoutMutation.mutate({ items, token });
   }
 
   function scrollToProducts() {
@@ -1701,19 +1762,19 @@ export default function App() {
                 </label>
               </div>
 
-              {productsLoading && <p className="muted">Loading products…</p>}
-              {productsError && (
+              {productsQuery.isPending && <p className="muted">Loading products…</p>}
+              {productsQuery.isError && (
                 <p className="alert alert-error" role="alert">
-                  {productsError} Check that the backend is running and MongoDB is connected.
+                  {productsQuery.error.message} Check that the backend is running and MongoDB is connected.
                 </p>
               )}
-              {!productsLoading && !productsError && filteredProducts.length === 0 && (
+              {productsQuery.isSuccess && filteredProducts.length === 0 && (
                 <div className="empty-state panel">
                   <h3>No products found</h3>
                   <p className="muted">Try another search or category.</p>
                 </div>
               )}
-              {!productsLoading && !productsError && filteredProducts.length > 0 && (
+              {productsQuery.isSuccess && filteredProducts.length > 0 && (
                 <div className="product-grid">
                   {filteredProducts.map((product) => (
                     <ProductCard key={product._id} product={product} onAddToCart={addToCart} />
@@ -1731,7 +1792,7 @@ export default function App() {
             onUpdateQuantity={updateQuantity}
             onRemove={removeFromCart}
             onCheckout={checkout}
-            submitting={checkoutSubmitting}
+            submitting={checkoutMutation.isPending}
           />
         )}
         {view === "auth" && (
@@ -1849,10 +1910,13 @@ h3 { font-size: 1.06rem; }
 .auth-panel { max-width: 480px; margin: 34px auto 0; padding: clamp(24px, 5vw, 38px); }
 .auth-panel h1 { font-size: 2.1rem; margin-bottom: 12px; }
 .stack-form { display: grid; gap: 16px; margin-top: 24px; }
+.stack-form > div { display: grid; gap: 8px; }
 .stack-form label { display: grid; gap: 8px; font-size: 0.88rem; font-weight: 700; }
 .stack-form input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #dcd5e5; border-radius: 10px; outline: none; background: #fff; color: var(--ink); font-weight: 400; }
 .stack-form input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(97,55,184,0.12); }
 .field-help { color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
+.stack-form .field-help { margin: 0; }
+.stack-form .danger-text { color: #b42336; }
 .form-switch { margin: 20px 0 0; text-align: center; font-size: 0.9rem; color: var(--muted); }
 .cart-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
 .cart-lines { display: grid; gap: 12px; }
@@ -1944,35 +2008,52 @@ Keep both dev servers running. Visit the frontend URL printed by Vite.
 ## Follow one product request
 
 ~~~text
-App's effect calls loadProducts()
+App renders useQuery({ queryKey: ["products"], queryFn })
  -> apiRequest("/api/products")
  -> Express products router
  -> Product.find({ active: true })
  -> MongoDB result
  -> { products: [...] }
- -> setProducts(data.products)
+ -> TanStack Query stores the response in its cache
+ -> App reads productsQuery.data.products
  -> React renders ProductCard components
 ~~~
 
-The effect's isActive flag prevents a late response from setting state after cleanup.
-It does not cancel the HTTP request. Development StrictMode can run an additional setup/cleanup cycle.
+There is no hand-written product-loading effect or isActive flag.
+The query's signal reaches fetch so obsolete requests can be cancelled.
+Development StrictMode can cause a cancelled initial request followed by a new one; this is not search issuing extra requests.
+
+### Query defaults used for this classroom app
+
+- **retry: false** makes errors visible without silent retry delays. Mutations also explicitly disable retries, especially important for order creation.
+- **refetchOnWindowFocus: false** and **refetchOnReconnect: false** avoid surprise refetches when changing windows or reconnecting.
+- The default **staleTime: 0** is retained: cached data is immediately considered stale. Stale does not mean deleted.
+- A stale query refetches when mounted again. Order history refreshes on re-entry; the products query stays mounted in App while panels change.
+- Inactive queries normally remain cached for five minutes; logout/session changes explicitly remove private orders earlier.
+- A successful checkout calls **invalidateQueries({ queryKey: ["orders", user.id] })** to mark that user's history out of date. Active matching queries refetch; otherwise the next mount fetches.
+- Cache and pending states belong to Query, but cart state still belongs to React. Do not copy the query results into a second set of state variables.
+
+For teaching: **query = read**, **mutation = submit**, **invalidate = refresh this saved result**.
 
 ## Follow one checkout
 
 ~~~text
 Click Place demo order
  -> App checks session and cart
+ -> checkoutMutation.mutate({ items, token })
  -> POST /api/orders with token, product IDs and quantities
  -> requireAuth verifies identity
  -> route validates items and calculates database prices
  -> Order.create saves the receipt
  -> { order } returns with HTTP 201
+ -> mutation onSuccess invalidates this user's order query
  -> App clears the cart and opens My orders
- -> OrdersPanel requests GET /api/orders
+ -> OrdersPanel's useQuery requests GET /api/orders
  -> { orders: [...] } returns only this user's history
 ~~~
 
 When checkout fails, show the message and keep the cart. When it succeeds, clear the cart.
+The mutation's isPending controls the checkout button. A late checkout response from a previous session does not change the new user's screen or cart.
 Disabling the button reduces repeat clicks; it is **not** a server-side exactly-once/idempotency guarantee.
 After a refresh, App returns to the shop view; reopen My orders to see saved orders.
 
@@ -2008,6 +2089,9 @@ Common statuses are 200/201 (success), 400 (invalid input), 401 (authentication 
 9. Refresh, reopen My orders and confirm persistence.
 10. Sign in as another test user and confirm private history.
 11. Check that failed API requests produce visible errors rather than pretending to succeed.
+12. Submit an empty/invalid auth form. Expect field errors and no API request; correct it and submit successfully.
+13. Visit My orders, place another order, and confirm the new receipt appears alongside the cached ones.
+14. Switch from registration to login with a missing name; that hidden field must not block login.
 
 ## Optional instructor tests
 
@@ -2052,6 +2136,8 @@ If binary downloads are blocked by your network, report that limitation; do not 
 - Historical price snapshots and user-specific orders.
 - Browser search/category interaction, cart persistence and quantity controls.
 - Session persistence, logout/login, complete checkout and failed-checkout behavior.
+- React Hook Form validation, error focus, mode switching, hidden-field cleanup and pending submissions.
+- Refreshing cached order history after checkout, hiding cached receipts on auth errors and cancelling private queries on logout.
 
 ### Complete test source (instructor appendix)
 
@@ -2447,7 +2533,10 @@ export { expect };
 export async function signUp(page) {
   const email = `${randomUUID()}@example.com`;
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^(Welcome back|Create your account)$/ })).toBeVisible();
+  if (await page.getByRole("heading", { name: "Welcome back" }).isVisible()) {
+    await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  }
   await page.getByLabel("Full name").fill("Student");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("classroom-test-password");
@@ -2565,6 +2654,7 @@ Registration, reload, logout and login journey.
 <!-- source: client/tests/account.spec.js -->
 ~~~javascript
 import { test, expect, signUp } from "./helpers.js";
+import { randomUUID } from "node:crypto";
 
 test("registration persists session; logout and login handle incorrect credentials", async ({ page }) => {
   await page.goto("/");
@@ -2580,6 +2670,90 @@ test("registration persists session; logout and login handle incorrect credentia
   await page.getByLabel("Password").fill("classroom-test-password");
   await page.getByRole("button", { name: "Log in", exact: true }).last().click();
   await expect(page.getByText("Hi, Student")).toBeVisible();
+});
+
+test("React Hook Form validates fields before sending registration", async ({ page }) => {
+  let submissions = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/auth/register")) submissions++;
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("Name is required.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Email is required.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Password is required.", { exact: true })).toBeVisible();
+  await expect(page.locator('input[aria-invalid="true"]:focus')).toHaveCount(1);
+  await page.getByLabel("Full name").fill("   ");
+  await page.getByLabel("Email").fill("not-an-email");
+  await page.getByLabel("Password").fill("short");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("A valid email is required.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Password must be at least 8 characters.", { exact: true })).toBeVisible();
+  expect(submissions).toBe(0);
+
+  await page.getByLabel("Full name").fill("Student");
+  await page.getByLabel("Email").fill(`${randomUUID()}@example.com`);
+  await page.getByLabel("Password").fill("classroom-test-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("Hi, Student")).toBeVisible();
+  expect(submissions).toBe(1);
+});
+
+test("switching to login clears registration errors and excludes the unmounted name field", async ({ page }) => {
+  let sentBody;
+  await page.route("**/api/auth/login", async (route) => {
+    sentBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 401, contentType: "application/json",
+      body: JSON.stringify({ message: "Email or password is incorrect." }),
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await page.getByLabel("Email").fill("student@example.com");
+  await page.getByLabel("Password").fill("classroom-test-password");
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("Name is required.", { exact: true })).toBeVisible();
+  await page.getByRole("main").getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page.getByLabel("Full name")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.getByRole("button", { name: "Log in", exact: true }).last().click();
+  await expect(page.getByRole("alert")).toHaveText("Email or password is incorrect.");
+  expect(sentBody).toEqual({ email: "student@example.com", password: "classroom-test-password" });
+  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("pending auth mutation disables submit and mode switch without retrying failures", async ({ page }) => {
+  let release;
+  const ready = new Promise((resolve) => { release = resolve; });
+  let submissions = 0;
+  await page.route("**/api/auth/login", async (route) => {
+    submissions++;
+    await ready;
+    await route.fulfill({
+      status: 401, contentType: "application/json",
+      body: JSON.stringify({ message: "Email or password is incorrect." }),
+    });
+  });
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Log in", exact: true }).click();
+    await page.getByLabel("Email").fill("student@example.com");
+    await page.getByLabel("Password").fill("classroom-test-password");
+    await page.getByRole("button", { name: "Log in", exact: true }).last().click();
+    await expect(page.getByRole("button", { name: "Please wait…" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Create an account", exact: true })).toBeDisabled();
+    release();
+    await expect(page.getByRole("alert")).toHaveText("Email or password is incorrect.");
+    await expect(page.getByRole("button", { name: "Log in", exact: true }).last()).toBeEnabled();
+    expect(submissions).toBe(1);
+  } finally {
+    release();
+  }
 });
 ~~~
 
@@ -2636,6 +2810,117 @@ test("failed checkout keeps the cart and shows the API error", async ({ page }) 
   await expect(page.getByRole("status")).toHaveText("One or more products are unavailable.");
   await expect(page.getByRole("button", { name: "Cart (1)", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Place demo order", exact: true })).toBeEnabled();
+});
+
+test("checkout invalidates already cached order history and displays both receipts", async ({ page }) => {
+  await page.goto("/");
+  await signUp(page);
+  await page.getByRole("button", { name: "My orders", exact: true }).click();
+  await expect(page.getByText("No orders yet")).toBeVisible();
+
+  const orderIds = [];
+  for (let count = 1; count <= 2; count++) {
+    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+    await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+    const placed = page.waitForResponse((response) =>
+      response.url().endsWith("/api/orders") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+    const { order } = await (await placed).json();
+    orderIds.push(order._id);
+    await expect(page.locator(".order-card")).toHaveCount(count);
+    for (const id of orderIds) {
+      await expect(page.getByText(id, { exact: true })).toBeVisible();
+    }
+  }
+});
+
+test("an expired session error hides cached orders when history is revisited", async ({ page }) => {
+  await page.goto("/");
+  await signUp(page);
+  await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+  await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+  await expect(page.locator(".order-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "Shop", exact: true }).click();
+  await page.route("**/api/orders", (route) => route.fulfill({
+    status: 401, contentType: "application/json",
+    body: JSON.stringify({ message: "Invalid or expired token." }),
+  }));
+  await page.getByRole("button", { name: "My orders", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Invalid or expired token.");
+  await expect(page.locator(".order-card")).toHaveCount(0);
+});
+
+test("logout cancels a pending private query before another account loads history", async ({ page }) => {
+  await page.goto("/");
+  await signUp(page);
+  let release;
+  const ready = new Promise((resolve) => { release = resolve; });
+  let requested = false;
+  let cancelled = false;
+  page.on("requestfailed", (request) => {
+    if (request.url().endsWith("/api/orders")) cancelled = true;
+  });
+  await page.route("**/api/orders", async (route) => {
+    requested = true;
+    await ready;
+    await route.fulfill({ status: 200, contentType: "application/json", body: '{"orders":[]}' });
+  });
+  try {
+    await page.getByRole("button", { name: "My orders", exact: true }).click();
+    await expect.poll(() => requested).toBe(true);
+    await expect(page.getByText("Loading your orders…")).toBeVisible();
+    cancelled = false;
+    await page.getByRole("button", { name: "Log out", exact: true }).click();
+    await expect.poll(() => cancelled).toBe(true);
+    release();
+    await page.unroute("**/api/orders");
+    await signUp(page);
+    await page.getByRole("button", { name: "My orders", exact: true }).click();
+    await expect(page.getByText("No orders yet")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  } finally {
+    release();
+  }
+});
+
+test("a late checkout response cannot clear a different account's cart", async ({ page }) => {
+  await page.goto("/");
+  await signUp(page);
+  let release;
+  const ready = new Promise((resolve) => { release = resolve; });
+  let saved = false;
+  await page.route("**/api/orders", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    expect(response.status()).toBe(201);
+    saved = true;
+    await ready;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+    await page.getByRole("button", { name: "Cart (1)", exact: true }).click();
+    await page.getByRole("button", { name: "Place demo order", exact: true }).click();
+    await expect.poll(() => saved).toBe(true);
+    await expect(page.getByRole("button", { name: "Placing order…" })).toBeDisabled();
+    await page.getByRole("button", { name: "Log out", exact: true }).click();
+    await signUp(page);
+    await page.getByRole("button", { name: "Add to cart", exact: true }).first().click();
+    await page.getByRole("button", { name: "Cart (2)", exact: true }).click();
+    release();
+    await expect(page.getByRole("button", { name: "Place demo order", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Cart (2)", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Shopping cart", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "My orders", exact: true }).click();
+    await expect(page.getByText("No orders yet")).toBeVisible();
+  } finally {
+    release();
+  }
 });
 ~~~
 

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "shoplite_session";
@@ -18,15 +19,19 @@ function readStoredSession() {
 export function AuthProvider({ children }) {
   // Stage 3: share the same signed-in session with every component.
   const [session, setSessionState] = useState(readStoredSession);
+  const queryClient = useQueryClient();
 
   function setSession(nextSession) {
     const safeSession = { token: nextSession.token, user: nextSession.user };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSession));
+    // Remove private cached data and cancel its requests when the session changes.
+    queryClient.removeQueries({ queryKey: ["orders"] });
     setSessionState(safeSession);
   }
 
   function logout() {
     localStorage.removeItem(STORAGE_KEY);
+    queryClient.removeQueries({ queryKey: ["orders"] });
     setSessionState({ token: null, user: null });
   }
 

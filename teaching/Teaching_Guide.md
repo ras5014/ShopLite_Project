@@ -17,7 +17,7 @@ Do **not** promise to build the whole application from an empty folder in 4.5 ho
 By the end, students should be able to:
 
 1. Distinguish the browser, API server and database.
-2. Explain components, props, state and a product-loading effect.
+2. Explain components, props, local state and a product-loading query.
 3. Follow `GET /api/products` from the browser to the JSON response.
 4. Explain login, a signed token and a protected route.
 5. Explain why checkout uses database prices and shows only the current user's orders.
@@ -38,7 +38,7 @@ Keep returning to a single example: an Insulated Bottle. With the default seed d
 
 ## 3. How to use the PowerPoint
 
-**Code update:** the application is now organized into beginner-friendly learning stages in the [README](../README.md). The slides still describe the same features and flows, but their source excerpts and some implementation-specific notes predate the simplification. Use the README's exact source listings for live coding: request effects now use named async functions, totals use loops, and Express 5 forwards async route failures to the central error handler.
+**Code update:** the application is organized into beginner-friendly learning stages in the [README](../README.md). The slides still describe the same features and flows, but their code excerpts predate the latest changes. Use the README for live coding: React Hook Form now handles auth inputs/validation, TanStack Query handles API reads/submissions, and the remaining cart effect saves localStorage. Totals still use loops and Express 5 forwards async route errors to the central handler.
 
 - Slides **1-11:** Day 1.
 - Slides **12-22:** Day 2.
@@ -66,6 +66,9 @@ Teach the familiar JavaScript idea before introducing the framework word:
 | Inputs passed to that function | Props |
 | A value whose update changes the UI | State |
 | Synchronizing with an external system | Effect |
+| Reading and caching API data | Query |
+| Submitting an API request | Mutation |
+| Managing input values and validation | React Hook Form |
 | A request sent to a server | API call |
 | Code selected by method and path | Route |
 | A description of data fields and rules | Schema |
@@ -89,7 +92,7 @@ The same time pattern is used each day so the class feels predictable.
 | 38-43 | 6 | Break and catch-up. |
 | 43-53 | 7 | Trace a controlled input and state update. |
 | 53-61 | 8 | Distinguish React state, localStorage and saved orders. |
-| 61-71 | 9 | Follow the product-loading effect and response. |
+| 61-71 | 9 | Follow the product query and response using the updated README. |
 | 71-85 | 10 | Pair exercise: change a label, verify behavior, trace search. |
 | 85-90 | 11 | Four-question exit ticket. |
 
@@ -150,14 +153,15 @@ The same time pattern is used each day so the class feels predictable.
 **Board trace:**
 
 ```text
-App effect
+App useQuery(["products"])
   -> apiRequest("/api/products")
   -> Express route mount
   -> product route handler
   -> Product.find(...)
   -> MongoDB result
   -> { products: [...] }
-  -> setProducts(data.products)
+  -> Query cache
+  -> productsQuery.data.products
   -> ProductCard list
 ```
 
@@ -166,9 +170,9 @@ App effect
 - Open DevTools -> Network -> Fetch/XHR before reloading.
 - Find `GET /api/products`; do not confuse it with image requests.
 - Identify the `products` array inside the response object.
-- Find where [App.jsx](../client/src/App.jsx) reads `data.products`.
+- Find where [App.jsx](../client/src/App.jsx) reads `productsQuery.data.products`.
 - Type `bottle`; observe that the filter does not send another request for each keystroke.
-- Development StrictMode can cause extra initial effect requests. Those are different from search requests.
+- Development StrictMode can cancel and restart initial queries. Those are different from search requests.
 
 **Exit ticket answers:**
 
@@ -195,13 +199,17 @@ App effect
 
 **Open these files:**
 
-- [AuthPanel.jsx](../client/src/components/AuthPanel.jsx): form submission.
+- [AuthPanel.jsx](../client/src/components/AuthPanel.jsx): `useForm`, validation and the login/registration mutation.
 - [AuthContext.jsx](../client/src/auth/AuthContext.jsx): shared session and browser persistence.
 - [authRoutes.js](../server/src/routes/authRoutes.js): login and token creation.
 - [requireAuth.js](../server/src/middleware/requireAuth.js): the route gatekeeper.
 - [App.jsx](../client/src/App.jsx): checkout handler.
 - [orderRoutes.js](../server/src/routes/orderRoutes.js): validation, trusted calculation and ownership.
-- [OrdersPanel.jsx](../client/src/components/OrdersPanel.jsx): loading the user's saved orders.
+- [OrdersPanel.jsx](../client/src/components/OrdersPanel.jsx): the user-specific order query.
+
+**New library explanation:** React state remembers the cart and screen choices. React Hook Form remembers form inputs and checks them. TanStack Query remembers API results and tracks pending/error states. A successful checkout invalidates order history so it refreshes; logout clears private order caches. Server authentication and validation are still required.
+
+**Short exercise:** submit an empty registration form, inspect the field messages, and confirm no API request was sent. Switch to login and confirm the hidden name field no longer blocks submission.
 
 **The worked example:**
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./api.js";
 import { useAuth } from "./auth/AuthContext.jsx";
 import Navbar from "./components/Navbar.jsx";
@@ -33,45 +34,41 @@ function readCart() {
 
 export default function App() {
   const { token, user, logout } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState("");
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState(readCart);
   const [view, setView] = useState("shop");
   const [authMode, setAuthMode] = useState("login");
   const [notice, setNotice] = useState("");
-  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
 
-  // Stage 2: load products, then filter the list in the browser.
-  useEffect(() => {
-    let isActive = true;
+  // Stage 2: Query owns server data; React state owns filters and the cart.
+  const productsQuery = useQuery({
+    queryKey: ["products"],
+    queryFn: ({ signal }) => apiRequest("/api/products", { signal }),
+  });
+  const products = productsQuery.data?.products ?? [];
 
-    async function loadProducts() {
-      setProductsLoading(true);
-      setProductsError("");
-      try {
-        const data = await apiRequest("/api/products");
-        if (isActive) {
-          setProducts(data.products);
-        }
-      } catch (error) {
-        if (isActive) {
-          setProductsError(error.message);
-        }
-      } finally {
-        if (isActive) {
-          setProductsLoading(false);
-        }
+  const checkoutMutation = useMutation({
+    mutationFn: ({ items, token }) => apiRequest("/api/orders", {
+      method: "POST",
+      token,
+      body: { items },
+    }),
+    onSuccess: (data, submitted) => {
+      // A late response from a previous session must not change this user's UI.
+      if (submitted.token !== token) return;
+      queryClient.invalidateQueries({ queryKey: ["orders", user.id] });
+      setCart([]);
+      setView("orders");
+      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
+    },
+    onError: (error, submitted) => {
+      if (submitted.token === token) {
+        setNotice(error.message);
       }
-    }
-
-    loadProducts();
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    },
+  });
 
   const categories = [];
   for (const product of products) {
@@ -177,37 +174,22 @@ export default function App() {
   }
 
   // Stage 4: send choices to the server; clear the cart only after success.
-  async function checkout() {
+  function checkout() {
     if (!token) {
       setAuthMode("login");
       setView("auth");
       setNotice("Log in or create an account before checking out.");
       return;
     }
-    if (cart.length === 0 || checkoutSubmitting) {
+    if (cart.length === 0 || checkoutMutation.isPending) {
       return;
     }
 
     const items = cart.map((item) => {
       return { productId: item.productId, quantity: item.quantity };
     });
-    setCheckoutSubmitting(true);
     setNotice("");
-
-    try {
-      const data = await apiRequest("/api/orders", {
-        method: "POST",
-        token,
-        body: { items },
-      });
-      setCart([]);
-      setView("orders");
-      setNotice(`Order placed successfully. Reference: ${data.order._id}`);
-    } catch (error) {
-      setNotice(error.message);
-    } finally {
-      setCheckoutSubmitting(false);
-    }
+    checkoutMutation.mutate({ items, token });
   }
 
   function scrollToProducts() {
@@ -281,19 +263,19 @@ export default function App() {
                 </label>
               </div>
 
-              {productsLoading && <p className="muted">Loading products…</p>}
-              {productsError && (
+              {productsQuery.isPending && <p className="muted">Loading products…</p>}
+              {productsQuery.isError && (
                 <p className="alert alert-error" role="alert">
-                  {productsError} Check that the backend is running and MongoDB is connected.
+                  {productsQuery.error.message} Check that the backend is running and MongoDB is connected.
                 </p>
               )}
-              {!productsLoading && !productsError && filteredProducts.length === 0 && (
+              {productsQuery.isSuccess && filteredProducts.length === 0 && (
                 <div className="empty-state panel">
                   <h3>No products found</h3>
                   <p className="muted">Try another search or category.</p>
                 </div>
               )}
-              {!productsLoading && !productsError && filteredProducts.length > 0 && (
+              {productsQuery.isSuccess && filteredProducts.length > 0 && (
                 <div className="product-grid">
                   {filteredProducts.map((product) => (
                     <ProductCard key={product._id} product={product} onAddToCart={addToCart} />
@@ -311,7 +293,7 @@ export default function App() {
             onUpdateQuantity={updateQuantity}
             onRemove={removeFromCart}
             onCheckout={checkout}
-            submitting={checkoutSubmitting}
+            submitting={checkoutMutation.isPending}
           />
         )}
         {view === "auth" && (

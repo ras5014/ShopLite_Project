@@ -15,7 +15,10 @@ export { expect };
 export async function signUp(page) {
   const email = `${randomUUID()}@example.com`;
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^(Welcome back|Create your account)$/ })).toBeVisible();
+  if (await page.getByRole("heading", { name: "Welcome back" }).isVisible()) {
+    await page.getByRole("button", { name: "Create an account", exact: true }).click();
+  }
   await page.getByLabel("Full name").fill("Student");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("classroom-test-password");
